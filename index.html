@@ -1,0 +1,1094 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DRIVE/RENT — mobilité intelligente</title>
+<meta name="description" content="DRIVE/RENT — location automobile intelligente, configurateur, planning, flotte, budget et assistant IA.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://unpkg.com"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{
+--cream:#f3ead9;--paper:#fbf6ec;--paper2:#fffdf8;--ink:#1c150f;--ink2:#5c5045;--muted:#8a7d6d;
+--line:rgba(28,21,15,.1);--glass:rgba(255,253,248,.6);--glassline:rgba(255,255,255,.8);
+--orange:#ff5a2c;--orange2:#ffb199;--pink:#e51c74;--pink2:#ff8fbd;--blue:#6f8cff;--purple:#b18cff;
+--green:#1c9d6b;--red:#e34b3c;--gold:#e8a23d;
+--shadow:0 22px 60px rgba(90,55,20,.14);--shadowsm:0 8px 24px rgba(90,55,20,.1);
+--r:28px;--r2:20px;--r3:14px;--nav:88px;
+--disp:'Bricolage Grotesque',ui-sans-serif,system-ui,sans-serif;--body:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif;
+--car-color:#1c150f;
+}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+[style*="--car-color"] svg{width:100%;height:auto;display:block}
+body{margin:0;font-family:var(--body);color:var(--ink);background:
+radial-gradient(circle at 12% -10%,#fff7e8 0,transparent 45%),
+radial-gradient(circle at 100% 0%,#ffe4d1 0,transparent 40%),
+radial-gradient(circle at 50% 120%,#ffe0ee 0,transparent 45%),
+var(--cream);overflow-x:hidden;cursor:none}
+@media(hover:none){body{cursor:auto}}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+@media(hover:hover){button,a,.clickable,input,select{cursor:none}}
+a{text-decoration:none;color:inherit}
+h1,h2,h3,h4{font-family:var(--disp);margin:0;letter-spacing:-.02em;font-weight:800}
+p{line-height:1.6;color:var(--ink2)}
+::selection{background:var(--orange);color:#fff}
+.app{min-height:100vh}
+.shell{max-width:1420px;margin:auto;padding:30px 34px 90px}
+
+/* cursor */
+#cursorDot,#cursorRing{position:fixed;top:0;left:0;pointer-events:none;z-index:9999;border-radius:50%;transform:translate(-50%,-50%);transition:opacity .2s}
+#cursorDot{width:7px;height:7px;background:var(--orange);opacity:0}
+#cursorRing{width:34px;height:34px;border:1.5px solid rgba(28,21,15,.45);opacity:0;transition:width .18s,height .18s,opacity .2s,background .18s,border-color .18s}
+#cursorRing.big{width:56px;height:56px;background:rgba(255,90,44,.1);border-color:var(--orange)}
+@media(hover:none){#cursorDot,#cursorRing{display:none}}
+
+/* loader */
+#loader{position:fixed;inset:0;z-index:10000;background:var(--ink);display:grid;place-items:center;transition:opacity .6s ease,visibility .6s}
+#loader.hide{opacity:0;visibility:hidden}
+.loadWrap{display:flex;flex-direction:column;align-items:center;gap:22px}
+.loadMark{width:74px;height:74px;border-radius:22px;background:linear-gradient(135deg,var(--orange),var(--pink));display:grid;place-items:center;animation:pulse 1.4s ease-in-out infinite}
+.loadMark span{width:30px;height:30px;border:4px solid #fff;border-radius:50%;position:relative}
+.loadMark span:after{content:"";position:absolute;width:8px;height:8px;background:#fff;border-radius:50%;right:-6px;top:-6px}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+.loadBar{width:220px;height:3px;border-radius:3px;background:rgba(255,255,255,.15);overflow:hidden}
+.loadBar i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--orange),var(--pink));border-radius:3px;animation:load 1.3s cubic-bezier(.4,0,.2,1) forwards}
+@keyframes load{to{width:100%}}
+.loadTxt{color:#fff;font-family:var(--disp);font-weight:800;letter-spacing:.02em;font-size:14px;opacity:.85}
+
+/* login gate */
+#loginGate{position:fixed;inset:0;z-index:9000;display:grid;place-items:center;background:
+radial-gradient(circle at 20% 10%,#fff2df 0,transparent 50%),
+radial-gradient(circle at 90% 90%,#ffd9ea 0,transparent 50%),var(--cream);padding:20px}
+#loginGate.hide{display:none}
+.loginCard{width:min(430px,100%);background:var(--glass);backdrop-filter:blur(22px);border:1px solid var(--glassline);border-radius:var(--r);box-shadow:var(--shadow);padding:38px 34px;position:relative;overflow:hidden}
+.loginCard:before{content:"";position:absolute;width:220px;height:220px;background:radial-gradient(circle,var(--orange2),transparent 70%);top:-90px;right:-90px;opacity:.6;border-radius:50%}
+.loginCard:after{content:"";position:absolute;width:180px;height:180px;background:radial-gradient(circle,var(--purple),transparent 70%);bottom:-80px;left:-80px;opacity:.35;border-radius:50%}
+.loginTop{position:relative;z-index:1;display:flex;align-items:center;gap:11px;margin-bottom:26px}
+.loginBrandmark{width:40px;height:40px;border-radius:13px;background:var(--ink);display:grid;place-items:center;box-shadow:0 8px 20px rgba(0,0,0,.25)}
+.loginBrandmark span{width:17px;height:17px;border:3px solid #fff;border-radius:50%;position:relative;display:block}
+.loginBrandmark span:after{content:"";position:absolute;width:6px;height:6px;background:var(--orange);border-radius:50%;right:-4px;top:-4px}
+.loginBrandTxt{font-family:var(--disp);font-weight:800;font-size:20px;letter-spacing:-.03em}
+.loginTabs{position:relative;z-index:1;display:flex;gap:6px;background:rgba(28,21,15,.06);padding:5px;border-radius:999px;margin-bottom:22px}
+.loginTabs button{flex:1;padding:10px;border-radius:999px;font-weight:700;font-size:14px;color:var(--ink2)}
+.loginTabs button.active{background:var(--ink);color:#fff}
+.loginField{position:relative;z-index:1;margin-bottom:13px}
+.loginField label{display:block;font-size:12.5px;font-weight:700;color:var(--ink2);margin-bottom:6px}
+.loginField input{width:100%;padding:13px 15px;border-radius:14px;border:1px solid var(--line);background:var(--paper2);outline:none;transition:border-color .2s,box-shadow .2s}
+.loginField input:focus{border-color:var(--orange);box-shadow:0 0 0 4px rgba(255,90,44,.13)}
+.loginErr{color:var(--red);font-size:13px;font-weight:600;min-height:18px;margin:2px 0 8px;position:relative;z-index:1}
+.loginSubmit{position:relative;z-index:1;width:100%;padding:14px;border-radius:14px;background:linear-gradient(135deg,var(--orange),var(--pink));color:#fff;font-weight:800;font-size:15px;box-shadow:0 14px 30px rgba(229,28,116,.28);transition:transform .2s}
+.loginSubmit:hover{transform:translateY(-2px)}
+.loginFoot{position:relative;z-index:1;text-align:center;font-size:12.5px;color:var(--muted);margin-top:16px}
+
+/* topbar */
+.topbar{height:var(--nav);display:flex;align-items:center;gap:22px;padding:0 34px;position:sticky;top:0;background:rgba(246,238,222,.75);backdrop-filter:blur(20px);z-index:500;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:11px;font-family:var(--disp);font-weight:800;font-size:22px;letter-spacing:-.03em}
+.brandmark{width:40px;height:40px;border-radius:13px;background:var(--ink);color:#fff;display:grid;place-items:center;box-shadow:0 10px 22px rgba(28,21,15,.28)}
+.brandmark span{display:block;width:17px;height:17px;border:3px solid #fff;border-radius:50%;position:relative}
+.brandmark span:after{content:"";position:absolute;width:6px;height:6px;background:var(--orange);border-radius:50%;right:-4px;top:-4px}
+.nav{display:flex;gap:5px;align-items:center;margin:auto;background:rgba(255,255,255,.4);padding:6px;border-radius:999px;border:1px solid var(--glassline)}
+.nav button{padding:10px 15px;border-radius:999px;color:var(--ink2);font-weight:700;font-size:14px;transition:.2s}
+.nav button:hover{color:var(--ink)}
+.nav button.active{background:var(--ink);color:#fff;box-shadow:0 6px 16px rgba(28,21,15,.25)}
+.actions{display:flex;gap:9px;align-items:center}
+.iconbtn{width:42px;height:42px;border-radius:50%;background:var(--paper2);border:1px solid var(--line);box-shadow:var(--shadowsm);display:grid;place-items:center;font-size:16px;transition:transform .2s}
+.iconbtn:hover{transform:translateY(-2px)}
+.iconbtn.on{background:var(--pink);color:#fff;border-color:transparent}
+.primary{background:var(--ink);color:#fff;border-radius:14px;padding:13px 19px;font-weight:800;font-size:14px;box-shadow:0 12px 24px rgba(28,21,15,.25);transition:.25s}
+.primary:hover{transform:translateY(-2px)}
+.ghost{background:var(--paper2);border:1px solid var(--line);border-radius:14px;padding:13px 19px;font-weight:700;font-size:14px}
+.grad{background:linear-gradient(135deg,var(--orange),var(--pink));color:#fff;border:0;box-shadow:0 14px 28px rgba(229,28,116,.25)}
+.mobileMenu{display:none}
+.badge{display:inline-flex;align-items:center;gap:7px;background:var(--paper2);border:1px solid var(--line);padding:7px 13px;border-radius:999px;font-size:12.5px;font-weight:700;color:var(--ink2)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+.dot.pulse{animation:dotpulse 1.6s infinite}
+@keyframes dotpulse{0%,100%{box-shadow:0 0 0 0 rgba(28,157,107,.5)}50%{box-shadow:0 0 0 6px rgba(28,157,107,0)}}
+
+/* glass panel */
+.glass{background:var(--glass);backdrop-filter:blur(20px);border:1px solid var(--glassline);border-radius:var(--r);box-shadow:var(--shadow);position:relative;overflow:hidden}
+.blob{position:absolute;border-radius:50%;filter:blur(2px);pointer-events:none;opacity:.55}
+.panel{background:var(--paper2);border:1px solid var(--line);border-radius:var(--r2);box-shadow:var(--shadowsm)}
+
+/* hero */
+.hero{display:grid;grid-template-columns:1.2fr .8fr;gap:20px;min-height:600px;align-items:stretch;margin-top:4px}
+.heroMain{padding:54px;display:flex;flex-direction:column;justify-content:center}
+.heroMain .blob1{width:340px;height:340px;background:radial-gradient(circle,var(--orange2),transparent 70%);top:-140px;right:-100px}
+.heroMain .blob2{width:260px;height:260px;background:radial-gradient(circle,var(--purple),transparent 70%);bottom:-120px;left:-60px;opacity:.3}
+.eyebrow{position:relative;z-index:1;display:inline-flex;gap:8px;align-items:center;background:#fff;padding:9px 14px;border-radius:999px;font-size:12.5px;font-weight:800;box-shadow:var(--shadowsm);width:fit-content}
+.hero h1{position:relative;z-index:1;font-size:60px;line-height:1.02;margin:20px 0 16px;max-width:11ch}
+.hero h1 em{font-style:normal;color:var(--orange)}
+.hero p.lead{position:relative;z-index:1;font-size:17px;max-width:44ch;margin-bottom:26px}
+.heroBtns{position:relative;z-index:1;display:flex;gap:12px;flex-wrap:wrap;margin-bottom:30px}
+.heroSearch{position:relative;z-index:1;display:grid;grid-template-columns:1.4fr 1fr 1fr auto;gap:0;background:#fff;border-radius:18px;box-shadow:var(--shadow);padding:6px;max-width:640px}
+.heroSearch>div{padding:10px 14px;border-right:1px solid var(--line)}
+.heroSearch>div:last-of-type{border-right:0}
+.heroSearch label{display:block;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:2px}
+.heroSearch input,.heroSearch select{border:0;outline:0;width:100%;font-weight:700;font-size:13.5px;background:none}
+.heroSearch button{background:linear-gradient(135deg,var(--orange),var(--pink));color:#fff;border-radius:13px;padding:0 22px;font-weight:800;font-size:14px}
+.heroSide{display:grid;gap:20px}
+.heroCard{padding:26px;display:flex;flex-direction:column;justify-content:center;gap:10px}
+.heroCard .blob1{width:180px;height:180px;background:radial-gradient(circle,var(--blue),transparent 70%);top:-70px;right:-60px}
+.heroStat{font-family:var(--disp);font-size:38px;font-weight:800;position:relative;z-index:1}
+.heroStatLbl{font-size:13px;color:var(--ink2);font-weight:600;position:relative;z-index:1}
+.heroCarWrap{position:relative;z-index:1;height:110px;display:flex;align-items:center;justify-content:center}
+.heroCarWrap svg{width:78%;height:auto;filter:drop-shadow(0 12px 12px rgba(0,0,0,.14))}
+
+/* section head */
+.sectionHead{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin:70px 0 26px;flex-wrap:wrap}
+.sectionHead h2{font-size:34px}
+.sectionHead p{margin-top:6px;max-width:50ch}
+.chip{display:inline-flex;padding:6px 13px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:12px;font-weight:800;color:var(--orange);margin-bottom:10px}
+
+/* feature grid */
+.featureGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.featureCard{padding:26px;transition:transform .25s}
+.featureCard:hover{transform:translateY(-4px)}
+.featureIcon{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;font-size:21px;margin-bottom:16px;position:relative;z-index:1}
+.featureCard h3{font-size:17px;margin-bottom:8px;position:relative;z-index:1}
+.featureCard p{font-size:13.5px;position:relative;z-index:1;margin:0}
+
+/* stats strip */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin:30px 0}
+.statCard{padding:24px;text-align:left}
+.statCard .heroStat{font-size:32px}
+
+/* fleet */
+.catalogLayout{display:grid;grid-template-columns:280px 1fr;gap:24px;align-items:start}
+.sideFilters{position:sticky;top:calc(var(--nav) + 16px);padding:22px;display:flex;flex-direction:column;gap:20px}
+.filterGroup h4{font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:10px}
+.filterChips{display:flex;flex-wrap:wrap;gap:7px}
+.filterChips button{padding:8px 13px;border-radius:999px;background:var(--paper);border:1px solid var(--line);font-size:12.5px;font-weight:700}
+.filterChips button.active{background:var(--ink);color:#fff;border-color:transparent}
+.rangeRow{display:flex;justify-content:space-between;font-size:12.5px;font-weight:700;color:var(--ink2);margin-bottom:6px}
+.fleetToolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:14px;flex-wrap:wrap}
+.searchBox{flex:1;min-width:180px;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:13px;padding:10px 14px}
+.searchBox input{border:0;outline:0;width:100%;background:none;font-weight:600}
+.fleetGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.vcard{padding:20px;display:flex;flex-direction:column;transition:transform .25s,box-shadow .25s}
+.vcard:hover{transform:translateY(-6px);box-shadow:0 30px 60px rgba(90,55,20,.18)}
+.vcardTop{display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1}
+.vcardCat{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--orange)}
+.favBtn{width:34px;height:34px;border-radius:50%;background:#fff;border:1px solid var(--line);display:grid;place-items:center;font-size:14px}
+.favBtn.on{color:var(--pink)}
+.vcardImg{height:130px;display:flex;align-items:center;justify-content:center;margin:6px 0;position:relative;z-index:1}
+.vcardImg svg{width:88%;height:auto;filter:drop-shadow(0 14px 14px rgba(0,0,0,.14))}
+.vcardName{font-family:var(--disp);font-weight:800;font-size:18px;position:relative;z-index:1}
+.vcardBrand{font-size:12.5px;color:var(--muted);font-weight:700;position:relative;z-index:1}
+.vcardMeta{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;position:relative;z-index:1}
+.vcardMeta span{font-size:11.5px;font-weight:700;background:var(--paper);padding:5px 9px;border-radius:8px;color:var(--ink2)}
+.vcardFoot{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:14px;border-top:1px solid var(--line);position:relative;z-index:1}
+.vcardPrice{font-family:var(--disp);font-weight:800;font-size:19px}
+.vcardPrice small{font-size:11px;font-weight:700;color:var(--muted)}
+.vcardUnavail{opacity:.55;filter:grayscale(.4)}
+
+/* vehicle detail */
+.vehiclePage{display:grid;grid-template-columns:1.3fr .9fr;gap:22px;align-items:start}
+.vGallery{padding:30px}
+.vGalleryMain{height:320px;display:flex;align-items:center;justify-content:center;position:relative}
+.vGalleryMain svg{width:85%;height:auto;filter:drop-shadow(0 26px 22px rgba(0,0,0,.16))}
+.vThumbs{display:flex;gap:10px;margin-top:18px;justify-content:center}
+.vThumbs button{width:56px;height:56px;border-radius:13px;background:var(--paper);border:1px solid var(--line);display:grid;place-items:center}
+.vThumbs button.active{border-color:var(--orange);background:#fff}
+.vThumbs svg{width:70%}
+.colorRow{display:flex;gap:10px;margin-top:20px;justify-content:center;flex-wrap:wrap}
+.swatch{width:30px;height:30px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1.5px var(--line);position:relative}
+.swatch.active{box-shadow:0 0 0 2.5px var(--orange)}
+.vHead{padding:28px}
+.vHead .vcardCat{font-size:12px}
+.vHead h1{font-size:34px;margin:8px 0 4px}
+.vHead .vcardBrand{font-size:14px}
+.tabRow{display:flex;gap:6px;margin:20px 0 16px;background:var(--paper);padding:5px;border-radius:13px;flex-wrap:wrap}
+.tabRow button{padding:9px 13px;border-radius:9px;font-size:12.5px;font-weight:800;color:var(--ink2)}
+.tabRow button.active{background:var(--ink);color:#fff}
+.specGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.specItem{background:var(--paper);border-radius:13px;padding:14px 16px}
+.specItem .l{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:4px}
+.specItem .v{font-family:var(--disp);font-weight:800;font-size:16px}
+.vSummary{padding:26px;position:sticky;top:calc(var(--nav) + 16px)}
+.priceRow{display:flex;align-items:baseline;gap:6px;margin-bottom:18px}
+.priceRow b{font-family:var(--disp);font-size:32px}
+.sumLine{display:flex;justify-content:space-between;font-size:13.5px;padding:9px 0;border-bottom:1px dashed var(--line)}
+.sumLine.total{border:0;font-weight:800;font-size:15.5px;padding-top:14px}
+
+/* booking */
+.bookWrap{display:grid;grid-template-columns:1.3fr .9fr;gap:22px;align-items:start}
+.stepper{display:flex;gap:8px;margin-bottom:22px}
+.stepDot{flex:1;text-align:center;padding:12px 8px;border-radius:13px;background:var(--paper);font-size:12px;font-weight:800;color:var(--muted);position:relative}
+.stepDot.active{background:var(--ink);color:#fff}
+.stepDot.done{background:var(--green);color:#fff}
+.bookCard{padding:28px}
+.formGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.field label{display:block;font-size:12px;font-weight:800;color:var(--ink2);margin-bottom:6px}
+.field input,.field select,.field textarea{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--paper);outline:none}
+.field input:focus,.field select:focus{border-color:var(--orange)}
+.optionCard{display:flex;align-items:center;justify-content:space-between;padding:16px;border-radius:14px;background:var(--paper);border:2px solid transparent;margin-bottom:10px;transition:.2s}
+.optionCard.active{border-color:var(--orange);background:#fff}
+.optionCard b{display:block;font-size:14.5px}
+.optionCard span{font-size:12.5px;color:var(--muted)}
+.optionPrice{font-weight:800;font-family:var(--disp)}
+.switch{width:44px;height:26px;border-radius:999px;background:var(--line);position:relative;flex-shrink:0}
+.switch.on{background:var(--green)}
+.switch i{position:absolute;width:20px;height:20px;background:#fff;border-radius:50%;top:3px;left:3px;transition:.2s;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.switch.on i{left:21px}
+.bookNav{display:flex;justify-content:space-between;margin-top:22px}
+
+/* admin shell */
+.adminShell{display:grid;grid-template-columns:250px 1fr;min-height:calc(100vh - var(--nav))}
+.adminSide{padding:26px 18px;display:flex;flex-direction:column;gap:4px;position:sticky;top:var(--nav);height:calc(100vh - var(--nav));background:rgba(255,253,248,.5);border-right:1px solid var(--line)}
+.adminNav button{display:flex;align-items:center;gap:11px;padding:12px 14px;border-radius:13px;font-weight:700;font-size:13.5px;color:var(--ink2);text-align:left}
+.adminNav button.active{background:var(--ink);color:#fff}
+.adminNav .grp{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800;margin:16px 8px 4px}
+.adminMain{padding:28px 32px 80px}
+.adminKpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+.kpiCard{padding:20px}
+.kpiTop{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.kpiIcon{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;font-size:16px}
+.kpiTrend{font-size:11.5px;font-weight:800;padding:3px 8px;border-radius:8px}
+.kpiTrend.up{background:#e6f6ee;color:var(--green)}
+.kpiTrend.down{background:#fdeceb;color:var(--red)}
+.kpiVal{font-family:var(--disp);font-size:27px;font-weight:800}
+.kpiLbl{font-size:12.5px;color:var(--muted);font-weight:600}
+.dashboardGrid{display:grid;grid-template-columns:1.5fr 1fr;gap:18px}
+.chartCard{padding:22px}
+.chartHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.chartHead h3{font-size:16px}
+.legendRow{display:flex;gap:14px;font-size:12px;font-weight:700}
+.legendRow span{display:flex;align-items:center;gap:6px}
+.legendDot{width:9px;height:9px;border-radius:50%}
+
+/* finance / budget */
+.financeGrid{display:grid;grid-template-columns:1.4fr .9fr;gap:18px}
+.budgetBar{margin-bottom:16px}
+.budgetBarTop{display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:6px}
+.budgetBarTop small{color:var(--muted);font-weight:600}
+.budgetTrack{height:10px;border-radius:999px;background:var(--paper);overflow:hidden}
+.budgetFill{height:100%;border-radius:999px;transition:width 1s cubic-bezier(.4,0,.2,1)}
+.txRow{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.txIcon{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:16px;flex-shrink:0}
+.txMain{flex:1;min-width:0}
+.txMain b{display:block;font-size:13.5px}
+.txMain span{font-size:12px;color:var(--muted)}
+.txAmt{font-family:var(--disp);font-weight:800;font-size:14.5px;white-space:nowrap}
+.txAmt.in{color:var(--green)}
+.txAmt.out{color:var(--red)}
+.donutWrap{display:flex;align-items:center;gap:18px}
+.donutLegend{display:flex;flex-direction:column;gap:9px;font-size:12.5px;font-weight:700}
+.donutLegend div{display:flex;align-items:center;gap:8px;justify-content:space-between;gap:12px}
+.donutLegend .sw{width:9px;height:9px;border-radius:50%}
+
+/* planning */
+.timeline{display:grid;grid-template-columns:150px repeat(7,1fr);gap:2px;background:var(--line);border-radius:16px;overflow:hidden}
+.timeline>div{background:var(--paper2);padding:10px 8px;font-size:12px}
+.timeline .head{font-weight:800;background:var(--paper);text-align:center}
+.tlCar{font-weight:700;display:flex;align-items:center;font-size:12.5px}
+.tlSlot{position:relative;min-height:46px}
+.tlBar{position:absolute;top:4px;left:2px;right:2px;bottom:4px;border-radius:8px;font-size:10.5px;color:#fff;display:flex;align-items:center;padding:0 6px;font-weight:700;overflow:hidden}
+
+/* live map */
+.liveGrid{display:grid;grid-template-columns:1.6fr 1fr;gap:18px}
+.map{height:480px;border-radius:var(--r2);overflow:hidden}
+.liveCard{padding:16px;display:flex;gap:12px;align-items:center;margin-bottom:10px}
+.liveCard .live-svg{width:60px;flex-shrink:0}
+.liveCard .live-svg svg{width:100%;height:auto;display:block}
+
+/* analytics chart */
+.chartSvgWrap{width:100%;height:220px}
+.barsRow{display:flex;align-items:flex-end;gap:8px;height:180px;padding-top:10px}
+.barsRow .bar{flex:1;border-radius:8px 8px 0 0;background:linear-gradient(180deg,var(--orange),var(--pink));transition:height 1s cubic-bezier(.4,0,.2,1);min-height:4px}
+
+/* client */
+.clientGrid{display:grid;grid-template-columns:1fr 1.3fr;gap:18px}
+.miniCard{padding:20px;display:flex;flex-direction:column;gap:6px}
+.resItem{display:flex;justify-content:space-between;align-items:center;padding:14px;border-radius:14px;background:var(--paper);margin-bottom:10px}
+.statusPill{font-size:11px;font-weight:800;padding:5px 10px;border-radius:999px}
+.statusPill.ok{background:#e6f6ee;color:var(--green)}
+.statusPill.pend{background:#fff3e0;color:var(--gold)}
+
+/* modal / toast / command / chat */
+.modalBack{position:fixed;inset:0;background:rgba(20,14,9,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:2000;padding:20px}
+.modalBack.show{display:flex}
+.modal{background:var(--paper2);border-radius:var(--r);max-width:560px;width:100%;max-height:88vh;overflow:auto;padding:30px;box-shadow:var(--shadow);position:relative}
+.modalClose{position:absolute;top:18px;right:18px;width:34px;height:34px;border-radius:50%;background:var(--paper);display:grid;place-items:center}
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(120%);background:var(--ink);color:#fff;padding:14px 22px;border-radius:14px;font-weight:700;font-size:13.5px;z-index:3000;transition:transform .3s;box-shadow:0 16px 30px rgba(0,0,0,.3)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.command{position:fixed;inset:0;background:rgba(20,14,9,.5);backdrop-filter:blur(4px);z-index:2500;display:none;justify-content:center;padding-top:12vh}
+.command.show{display:flex}
+.cmdBox{background:var(--paper2);width:min(560px,92vw);border-radius:20px;box-shadow:var(--shadow);height:fit-content;overflow:hidden}
+.cmdBox input{width:100%;border:0;padding:20px;font-size:16px;outline:0;border-bottom:1px solid var(--line);background:none}
+.cmdList button{display:block;width:100%;text-align:left;padding:13px 20px;font-weight:600;font-size:14px}
+.cmdList button:hover{background:var(--paper)}
+.chatFab{position:fixed;bottom:26px;right:26px;width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,var(--orange),var(--pink));box-shadow:0 16px 34px rgba(229,28,116,.35);display:grid;place-items:center;color:#fff;font-size:22px;z-index:1500}
+.chatPanel{position:fixed;bottom:96px;right:26px;width:min(370px,calc(100vw - 30px));max-height:70vh;background:var(--paper2);border-radius:22px;box-shadow:var(--shadow);z-index:1500;display:none;flex-direction:column;overflow:hidden}
+.chatPanel.show{display:flex}
+.chatHead{padding:16px 18px;background:var(--ink);color:#fff;display:flex;justify-content:space-between;align-items:center}
+.chatBody{padding:16px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:10px}
+.chatMsg{max-width:80%;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.5}
+.chatMsg.bot{background:var(--paper);align-self:flex-start;border-bottom-left-radius:4px}
+.chatMsg.user{background:var(--ink);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+.chatInput{display:flex;border-top:1px solid var(--line);padding:10px}
+.chatInput input{flex:1;border:0;outline:0;padding:10px;background:none}
+.chatInput button{width:38px;height:38px;border-radius:50%;background:var(--orange);color:#fff}
+.france-svg{width:100%;height:auto}
+
+@media(max-width:1100px){.nav{display:none}.mobileMenu{display:block}.hero{grid-template-columns:1fr}.fleetGrid{grid-template-columns:repeat(2,1fr)}.featureGrid{grid-template-columns:1fr 1fr}.stats,.adminKpis{grid-template-columns:repeat(2,1fr)}.catalogLayout{grid-template-columns:1fr}.sideFilters{position:static}.vehiclePage,.bookWrap,.liveGrid,.dashboardGrid,.financeGrid,.clientGrid{grid-template-columns:1fr}.vSummary{position:static}.adminShell{grid-template-columns:74px 1fr}.adminNav button span.lbl{display:none}.adminNav .grp{display:none}}
+@media(max-width:720px){.topbar{padding:0 14px;gap:10px}.shell{padding:16px 16px 60px}.hero h1{font-size:40px}.heroSearch{grid-template-columns:1fr 1fr}.fleetGrid,.featureGrid,.stats{grid-template-columns:1fr}.adminShell{display:block}.adminSide{position:static;height:auto;flex-direction:row;overflow:auto}.adminMain{padding:16px}.adminKpis{grid-template-columns:1fr 1fr}.timeline{grid-template-columns:100px repeat(7,1fr)}.map{height:340px}.sectionHead h2{font-size:26px}.formGrid{grid-template-columns:1fr}.chatPanel{right:15px;bottom:88px}
+.brand{font-size:17px;gap:8px}.brandmark{width:34px;height:34px;border-radius:11px}
+.actions{gap:6px}.actions .iconbtn,.actions #logoutBtn{display:none}.actions .primary{padding:11px 14px;font-size:12.5px}
+}
+</style>
+</head>
+<body>
+<div id="loader"><div class="loadWrap"><div class="loadMark"><span></span></div><div class="loadBar"><i></i></div><div class="loadTxt">DRIVE/RENT</div></div></div>
+<div id="cursorRing"></div><div id="cursorDot"></div>
+<div id="loginGate"></div>
+<div id="app"></div>
+<div id="modalBack" class="modalBack"></div>
+<div id="toast" class="toast"></div>
+<div id="command" class="command"></div>
+<button class="chatFab" id="chatOpen">✦</button>
+<div class="chatPanel" id="chatPanel"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ---------- DATA ---------- */
+const COLORS=[['Blanc Nacré','#f4f1ea'],['Noir Onyx','#1c1c1f'],['Gris Météorite','#7c8189'],['Bleu Abysse','#2c4a8f'],['Rouge Carmin','#c62a3a'],['Orange Drive','#ff5a2c'],['Vert Forêt','#2f6b4f'],['Beige Sable','#c9b28c']];
+const cars=[
+['clio','Renault','Clio','Citadine','Essence','Manuelle',59,90,10.8,15.2,5,260],
+['208','Peugeot','208','Citadine','Essence','Manuelle',55,100,10.2,16.1,5,265],
+['e208','Peugeot','e-208','Citadine','Électrique','Automatique',69,136,8.1,349,5,311],
+['sandero','Dacia','Sandero','Citadine','Essence','Manuelle',49,90,11.7,15.5,5,328],
+['c3','Citroën','C3','Citadine','Essence','Manuelle',52,83,11.7,15.8,5,300],
+['corsa','Opel','Corsa','Citadine','Essence','Manuelle',54,100,10.5,16,5,309],
+['yaris','Toyota','Yaris Hybrid','Citadine','Hybride','Automatique',67,116,9.7,14.6,5,270],
+['polo','Volkswagen','Polo','Citadine','Essence','Automatique',69,95,10.8,16.4,5,351],
+['captur','Renault','Captur','SUV compact','Hybride','Automatique',79,145,10.1,14.3,5,422],
+['duster','Dacia','Duster','SUV compact','Hybride','Manuelle',72,130,10.4,15.6,5,472],
+['p2008','Peugeot','2008','SUV compact','Essence','Automatique',82,130,9.9,16.5,5,405],
+['c4','Citroën','C4','Compacte','Essence','Automatique',74,131,10.6,16.3,5,380],
+['megane','Renault','Mégane E-Tech','Compacte','Électrique','Automatique',89,220,7.4,428,5,440],
+['golf','Volkswagen','Golf 8','Compacte','Essence','Automatique',86,131,9.2,16.8,5,381],
+['308','Peugeot','308','Compacte','Hybride','Automatique',84,180,7.6,15,5,412],
+['focus','Ford','Focus','Compacte','Essence','Manuelle',76,125,9.8,16.7,5,375],
+['corolla','Toyota','Corolla Touring','Break','Hybride','Automatique',89,140,9.1,14.1,5,596],
+['octavia','Skoda','Octavia','Break','Essence','Automatique',92,150,8.4,16.2,5,640],
+['3008','Peugeot','3008','SUV familial','Hybride','Automatique',109,195,8.7,14.9,5,520],
+['austral','Renault','Austral','SUV familial','Hybride','Automatique',105,200,7.9,15.1,5,537],
+['c5air','Citroën','C5 Aircross','SUV familial','Hybride','Automatique',99,180,9.2,15.4,5,580],
+['tiguan','Volkswagen','Tiguan','SUV familial','Essence','Automatique',112,150,9.6,17.1,5,652],
+['qashqai','Nissan','Qashqai','SUV familial','Mild Hybrid','Automatique',96,158,9.5,15.9,5,504],
+['sportage','Kia','Sportage','SUV familial','Hybride','Automatique',98,230,8.2,15.3,5,543],
+['tucson','Hyundai','Tucson','SUV familial','Hybride','Automatique',101,230,8,15.6,5,546],
+['model3','Tesla','Model 3','Électrique','Électrique','Automatique',119,283,6.1,513,5,594],
+['modely','Tesla','Model Y','SUV électrique','Électrique','Automatique',129,299,6.9,455,5,854],
+['serie1','BMW','Série 1','Premium compacte','Essence','Automatique',139,204,7.1,17.4,5,380],
+['a3','Audi','A3 Sportback','Premium compacte','Essence','Automatique',145,150,8.4,17,5,380],
+['classeA','Mercedes-Benz','Classe A','Premium compacte','Essence','Automatique',149,163,8,17.3,5,370],
+['serie3','BMW','Série 3','Premium berline','Diesel','Automatique',179,197,7.7,20.2,5,480],
+['classeC','Mercedes-Benz','Classe C','Premium berline','Diesel','Automatique',189,197,7.5,19.8,5,455],
+['a4','Audi','A4 Avant','Premium break','Diesel','Automatique',179,204,7.3,19.5,5,495],
+['x1','BMW','X1','Premium SUV','Hybride','Automatique',189,245,6.9,18.1,5,540],
+['q3','Audi','Q3','Premium SUV','Essence','Automatique',199,150,9,18.5,5,530],
+['glc','Mercedes-Benz','GLC','Premium SUV','Hybride','Automatique',219,320,5.7,19.2,5,620],
+['tourneo','Ford','Tourneo Custom','9 places','Diesel','Automatique',149,170,10.9,21.5,9,4000],
+['trafic','Renault','Trafic Passenger','9 places','Diesel','Manuelle',129,150,12.2,20.8,9,3700],
+['id3','Volkswagen','ID.3','Compacte','Électrique','Automatique',94,204,7.3,425,5,385],
+['mustang','Ford','Mustang Mach-E','SUV électrique','Électrique','Automatique',139,269,6.1,490,5,402],
+['a1','Audi','A1 Sportback','Citadine','Essence','Automatique',63,116,9.5,16.9,5,335],
+['xc40','Volvo','XC40','Premium SUV','Hybride','Automatique',179,262,7.3,18.4,5,460],
+['ipace','Jaguar','I-Pace','SUV électrique','Électrique','Automatique',249,400,4.8,470,5,656],
+['500e','Fiat','500e','Citadine','Électrique','Automatique',65,118,9,320,4,185],
+['leon','Seat','Leon','Compacte','Essence','Automatique',78,150,8.7,16.9,5,380],
+['kadjar','Renault','Kadjar','SUV compact','Essence','Automatique',75,140,10.2,16.7,5,472]
+].map((x,i)=>({id:x[0],brand:x[1],name:x[2],cat:x[3],fuel:x[4],gear:x[5],price:x[6],power:x[7],accel:x[8],cons:x[9],seats:x[10],trunk:x[11],
+color:COLORS[i%COLORS.length][1],available:i%7!==0,city:['Paris','Rennes','Nantes','Lyon','Bordeaux','Lille','Marseille'][i%7],
+rating:(4.2+((i*37)%8)/10).toFixed(1),silhouette: /SUV/.test(x[3])?'suv': /9 places/.test(x[3])?'van': /Premium|Break|Électrique/.test(x[3])?'sedan':'city'}));
+const cities=[['Paris',48.8566,2.3522,128],['Rennes',48.1173,-1.6778,34],['Nantes',47.2184,-1.5536,41],['Bordeaux',44.8378,-.5792,29],['Lyon',45.764,4.8357,46],['Lille',50.6292,3.0573,31],['Marseille',43.2965,5.3698,55],['Strasbourg',48.5734,7.7521,22],['Toulouse',43.6047,1.4442,27]];
+let reservations=[
+{id:'DR-1048',client:'Camille Martin',car:'Renault Clio',city:'Rennes',start:'2026-09-21',end:'2026-09-24',status:'Confirmée',total:236},
+{id:'DR-1049',client:'Thomas Bernard',car:'Peugeot 3008',city:'Paris',start:'2026-09-22',end:'2026-09-28',status:'Confirmée',total:654},
+{id:'DR-1050',client:'Sarah Leroy',car:'BMW Série 1',city:'Lyon',start:'2026-09-23',end:'2026-09-26',status:'En attente',total:417},
+{id:'DR-1051',client:'Lucas Moreau',car:'Tesla Model 3',city:'Nantes',start:'2026-09-24',end:'2026-09-27',status:'Confirmée',total:357},
+{id:'DR-1052',client:'Emma Petit',car:'Renault Captur',city:'Bordeaux',start:'2026-09-25',end:'2026-09-30',status:'Confirmée',total:474},
+{id:'DR-1053',client:'Hugo Durand',car:'Audi A3 Sportback',city:'Paris',start:'2026-09-26',end:'2026-09-29',status:'Confirmée',total:435}
+];
+let transactions=[
+{id:'T-901',type:'in',cat:'Location',label:'Réservation DR-1049 · Peugeot 3008',date:'2026-09-22',amount:654},
+{id:'T-902',type:'in',cat:'Location',label:'Réservation DR-1051 · Tesla Model 3',date:'2026-09-24',amount:357},
+{id:'T-903',type:'out',cat:'Maintenance',label:'Révision — Audi A3 Sportback',date:'2026-09-20',amount:214},
+{id:'T-904',type:'out',cat:'Carburant',label:'Plein flotte agence Lyon',date:'2026-09-19',amount:340},
+{id:'T-905',type:'in',cat:'Location',label:'Réservation DR-1052 · Renault Captur',date:'2026-09-25',amount:474},
+{id:'T-906',type:'out',cat:'Assurance',label:'Prime mensuelle flotte',date:'2026-09-15',amount:1180},
+{id:'T-907',type:'out',cat:'Salaires',label:'Équipe agence Rennes',date:'2026-09-05',amount:3200},
+{id:'T-908',type:'in',cat:'Location',label:'Réservation DR-1050 · BMW Série 1',date:'2026-09-23',amount:417},
+{id:'T-909',type:'out',cat:'Marketing',label:'Campagne réseaux sociaux',date:'2026-09-10',amount:480},
+{id:'T-910',type:'out',cat:'Nettoyage',label:'Prestataire détailing flotte',date:'2026-09-18',amount:260}
+];
+const budgets=[
+{cat:'Maintenance',alloc:2500,spent:1840,color:'#ff5a2c'},
+{cat:'Carburant & recharge',alloc:1800,spent:1340,color:'#e51c74'},
+{cat:'Assurance',alloc:1200,spent:1180,color:'#6f8cff'},
+{cat:'Salaires',alloc:3500,spent:3200,color:'#1c9d6b'},
+{cat:'Marketing',alloc:900,spent:480,color:'#e8a23d'},
+{cat:'Nettoyage & entretien',alloc:600,spent:410,color:'#b18cff'}
+];
+const state={route:'home',fleetFilter:'',cat:'Tous',fuel:'Tous',sort:'popular',selectedCar:'clio',selectedColor:null,vTab:'perf',bookingStep:1,planningDate:new Date(2026,8,21),
+favorites:new Set(JSON.parse(localStorage.getItem('dr-fav')||'[]')),user:localStorage.getItem('dr-user')||'',chartTimer:null,compareIds:JSON.parse(localStorage.getItem('dr-cmp')||'["clio","golf","3008"]'),
+financeRange:'30j'};
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function carBy(id){return cars.find(c=>c.id===id)||cars[0]}
+function fmtE(n){return n.toLocaleString('fr-FR')+' €'}
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(()=>t.classList.remove('show'),2600)}
+
+/* ---------- CAR SVG ---------- */
+function carSvg(sil){
+if(sil==='suv')return `<svg viewBox="0 0 300 120" xmlns="http://www.w3.org/2000/svg"><ellipse cx="150" cy="104" rx="128" ry="7" fill="#000" opacity=".12"/>
+<path d="M18 88 Q14 60 40 55 L62 40 Q80 26 112 25 L188 25 Q216 26 234 40 L258 55 Q286 60 282 88 Z" fill="var(--car-color)"/>
+<path d="M70 55 Q84 34 112 33 L186 33 Q212 34 226 53 L214 55 Q190 42 150 42 Q110 42 82 55 Z" fill="#dce8f5" opacity=".9"/>
+<path d="M18 88 Q14 60 40 55 L62 40 Q80 26 112 25 L120 25 L120 88 Z" fill="#000" opacity=".08"/>
+<rect x="16" y="80" width="270" height="10" rx="5" fill="#000" opacity=".18"/>
+<circle cx="86" cy="92" r="21" fill="#1b1b1f"/><circle cx="86" cy="92" r="10" fill="#cfd3da"/>
+<circle cx="222" cy="92" r="21" fill="#1b1b1f"/><circle cx="222" cy="92" r="10" fill="#cfd3da"/>
+<rect x="256" y="58" width="20" height="8" rx="3" fill="#ffdf8f"/><rect x="20" y="60" width="14" height="7" rx="3" fill="#ff5a5a"/></svg>`;
+if(sil==='van')return `<svg viewBox="0 0 320 120" xmlns="http://www.w3.org/2000/svg"><ellipse cx="160" cy="104" rx="140" ry="7" fill="#000" opacity=".12"/>
+<path d="M14 90 L14 46 Q14 28 34 28 L262 28 Q292 28 300 52 L306 90 Z" fill="var(--car-color)"/>
+<path d="M28 36 L96 36 L96 60 L24 60 Z" fill="#dce8f5" opacity=".9"/>
+<path d="M108 36 L188 36 L188 60 L108 60 Z" fill="#dce8f5" opacity=".85"/>
+<path d="M200 36 L252 36 Q276 36 284 55 L284 60 L200 60 Z" fill="#dce8f5" opacity=".85"/>
+<rect x="12" y="82" width="298" height="10" rx="5" fill="#000" opacity=".18"/>
+<circle cx="76" cy="94" r="22" fill="#1b1b1f"/><circle cx="76" cy="94" r="10" fill="#cfd3da"/>
+<circle cx="244" cy="94" r="22" fill="#1b1b1f"/><circle cx="244" cy="94" r="10" fill="#cfd3da"/>
+<rect x="292" y="60" width="18" height="8" rx="3" fill="#ffdf8f"/></svg>`;
+if(sil==='sedan')return `<svg viewBox="0 0 300 110" xmlns="http://www.w3.org/2000/svg"><ellipse cx="150" cy="94" rx="132" ry="6" fill="#000" opacity=".12"/>
+<path d="M14 82 Q10 62 34 58 L54 40 Q72 24 108 23 L182 23 Q212 24 228 40 L250 58 Q288 60 286 82 Z" fill="var(--car-color)"/>
+<path d="M66 40 Q80 30 108 29 L180 29 Q204 30 216 39 L206 41 Q184 33 150 33 Q116 33 76 41 Z" fill="#dce8f5" opacity=".92"/>
+<rect x="12" y="76" width="276" height="9" rx="4.5" fill="#000" opacity=".16"/>
+<circle cx="80" cy="86" r="19" fill="#1b1b1f"/><circle cx="80" cy="86" r="9" fill="#cfd3da"/>
+<circle cx="216" cy="86" r="19" fill="#1b1b1f"/><circle cx="216" cy="86" r="9" fill="#cfd3da"/>
+<rect x="262" y="52" width="18" height="7" rx="3" fill="#ffdf8f"/><rect x="16" y="54" width="12" height="6" rx="3" fill="#ff5a5a"/>
+<path d="M14 82 Q10 62 34 58 L54 40 Q60 34 68 30 L68 82Z" fill="#000" opacity=".07"/></svg>`;
+return `<svg viewBox="0 0 280 105" xmlns="http://www.w3.org/2000/svg"><ellipse cx="140" cy="90" rx="120" ry="6" fill="#000" opacity=".12"/>
+<path d="M16 78 Q13 60 34 56 L50 38 Q66 24 96 23 L168 24 Q192 26 206 42 L228 56 Q266 58 264 78 Z" fill="var(--car-color)"/>
+<path d="M62 39 Q74 30 97 29 L166 30 Q184 32 194 41 L184 43 Q166 35 132 35 Q100 35 72 43Z" fill="#dce8f5" opacity=".92"/>
+<rect x="14" y="72" width="254" height="9" rx="4.5" fill="#000" opacity=".16"/>
+<circle cx="74" cy="82" r="18" fill="#1b1b1f"/><circle cx="74" cy="82" r="8.5" fill="#cfd3da"/>
+<circle cx="200" cy="82" r="18" fill="#1b1b1f"/><circle cx="200" cy="82" r="8.5" fill="#cfd3da"/>
+<rect x="240" y="50" width="16" height="7" rx="3" fill="#ffdf8f"/><rect x="18" y="52" width="12" height="6" rx="3" fill="#ff5a5a"/></svg>`;
+}
+function carImg(c,cls=''){return `<div class="${cls}" style="--car-color:${c.color}">${carSvg(c.silhouette)}</div>`}
+
+/* ---------- NAV / LAYOUT ---------- */
+function nav(){
+const isAdmin=state.route.startsWith('admin')||['planning','live','analytics','finance','fleetAdmin'].includes(state.route);
+return `<header class="topbar"><a class="brand clickable" href="#home"><span class="brandmark"><span></span></span>DRIVE<span style="color:var(--orange)">/</span>RENT</a>
+<nav class="nav">
+<button class="clickable" data-route="home">Accueil</button>
+<button class="clickable" data-route="fleet">Flotte</button>
+<button class="clickable" data-route="booking">Réserver</button>
+<button class="clickable" data-route="compare">Comparer</button>
+<button class="clickable" data-route="client">Mon espace</button>
+<button class="clickable" data-route="admin">Admin</button>
+</nav>
+<div class="actions">
+<button class="iconbtn clickable" id="cmdBtn" title="Recherche rapide (⌘K)">⌘</button>
+<button class="iconbtn clickable ${state.favorites.size?'on':''}" data-route="fleet" title="Favoris">${state.favorites.size?'♥':'♡'}</button>
+<button class="ghost clickable" id="logoutBtn">Déconnexion</button>
+<button class="primary grad clickable" data-route="fleet">Voir les véhicules</button>
+</div>
+<button class="iconbtn mobileMenu clickable" id="mobileNav">☰</button>
+</header>`}
+
+/* ---------- HOME ---------- */
+function home(){
+const featured=cars.filter(c=>c.available).sort((a,b)=>b.rating-a.rating).slice(0,6);
+return `${nav()}<div class="shell">
+<section class="hero">
+<div class="glass heroMain"><div class="blob blob1"></div><div class="blob blob2"></div>
+<div class="eyebrow"><span class="dot pulse"></span> 342 véhicules disponibles aujourd'hui</div>
+<h1>La location auto, <em>enfin</em> intelligente</h1>
+<p class="lead">Réservez en moins de deux minutes, suivez votre véhicule en direct, gérez tout depuis un cockpit unique — flotte, budget et planning inclus.</p>
+<div class="heroBtns"><button class="primary grad clickable" data-route="fleet">Explorer la flotte</button><button class="ghost clickable" id="heroAi">Demander à l'IA ✦</button></div>
+<div class="heroSearch">
+<div><label>Ville</label><select id="hsCity">${cities.map(c=>`<option>${c[0]}</option>`).join('')}</select></div>
+<div><label>Départ</label><input type="date" id="hsStart" value="2026-09-24"></div>
+<div><label>Retour</label><input type="date" id="hsEnd" value="2026-09-27"></div>
+<button class="clickable" id="hsGo">Rechercher</button>
+</div>
+</div>
+<div class="heroSide">
+<div class="glass heroCard"><div class="blob blob1"></div>
+<div class="heroCarWrap">${carImg(carBy('modely'),'')}</div>
+<div class="heroStat" id="homeCounter">0</div><div class="heroStatLbl">locations ce mois-ci</div>
+</div>
+<div class="glass heroCard" style="background:linear-gradient(135deg,var(--ink),#2b2018);color:#fff">
+<div class="badge" style="background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.2)">✦ Assistant IA</div>
+<div style="font-family:var(--disp);font-weight:800;font-size:19px;margin-top:8px;position:relative;z-index:1">Un véhicule vous manque ?</div>
+<p style="color:#d8cfc4;font-size:13px;margin:6px 0 0;position:relative;z-index:1">Décrivez votre trajet, on configure la réservation pour vous.</p>
+</div>
+</div>
+</section>
+
+<div class="sectionHead"><div><span class="chip">Populaires</span><h2>Les véhicules du moment</h2><p>Sélection animée par les réservations en temps réel de la semaine.</p></div><button class="ghost clickable" data-route="fleet">Toute la flotte →</button></div>
+<div class="fleetGrid">${featured.map(c=>vcard(c)).join('')}</div>
+
+<div class="sectionHead"><div><span class="chip">Pourquoi DRIVE/RENT</span><h2>Un cockpit, pas juste une réservation</h2></div></div>
+<div class="featureGrid">
+${feature('🛰️','#ffe4d1','Suivi en direct','Localisation live, autonomie et état de chaque véhicule de la flotte, mis à jour en continu.')}
+${feature('⚙️','#e0eaff','Configurateur complet','Teintes, options, assurance et extras — le prix se met à jour à chaque choix.')}
+${feature('📊','#ffe0ee','Budget & finances',"Encaissements, dépenses et objectifs suivis avec des courbes animées, en un coup d'œil.")}
+${feature('✦','#eee0ff','Assistant IA','Un copilote qui répond, compare et prépare vos réservations en langage naturel.')}
+</div>
+
+<div class="sectionHead"><div><span class="chip">Couverture nationale</span><h2>Disponible dans 9 villes en France</h2></div><button class="ghost clickable" data-route="live">Carte en direct →</button></div>
+<div class="glass" style="padding:26px"><div id="franceMapHome" class="map" style="height:380px"></div></div>
+
+<div class="stats" style="margin-top:60px">
+${stat('98%','Taux de satisfaction')}${stat('4.8/5','Note moyenne flotte')}${stat('12min','Délai moyen de prise en charge')}${stat('24/7','Assistance disponible')}
+</div>
+</div>`}
+function feature(icon,bg,title,txt){return `<div class="glass featureCard"><div class="blob blob1" style="width:120px;height:120px;background:${bg};top:-50px;right:-40px;opacity:.5"></div><div class="featureIcon" style="background:${bg}">${icon}</div><h3>${title}</h3><p>${txt}</p></div>`}
+function stat(v,l){return `<div class="glass statCard"><div class="heroStat">${v}</div><div class="heroStatLbl">${l}</div></div>`}
+function vcard(c){const fav=state.favorites.has(c.id);
+return `<div class="glass vcard ${c.available?'':'vcardUnavail'}"><div class="blob blob1" style="width:140px;height:140px;background:${c.color}22;top:-60px;right:-50px"></div>
+<div class="vcardTop"><span class="vcardCat">${c.cat}</span><button class="favBtn clickable ${fav?'on':''}" data-fav="${c.id}">${fav?'♥':'♡'}</button></div>
+<div class="vcardImg clickable" data-route="vehicle" data-id="${c.id}">${carImg(c)}</div>
+<div class="vcardBrand">${c.brand}</div><div class="vcardName">${c.name}</div>
+<div class="vcardMeta"><span>${c.fuel}</span><span>${c.gear}</span><span>${c.seats} places</span><span>★ ${c.rating}</span></div>
+<div class="vcardFoot"><div class="vcardPrice">${c.price}€ <small>/ jour</small></div><button class="ghost clickable" data-route="vehicle" data-id="${c.id}" style="padding:10px 14px">Détails</button></div>
+${c.available?'':'<div style="position:absolute;top:16px;left:16px;background:var(--ink);color:#fff;font-size:10.5px;font-weight:800;padding:5px 10px;border-radius:8px">Indisponible</div>'}
+</div>`}
+
+/* ---------- FLEET ---------- */
+function fleet(){
+const cats=['Tous',...new Set(cars.map(c=>c.cat))];
+const fuels=['Tous',...new Set(cars.map(c=>c.fuel))];
+return `${nav()}<div class="shell">
+<div class="sectionHead" style="margin-top:10px"><div><span class="chip">${cars.length} modèles</span><h2>Toute la flotte</h2><p>Filtrez par catégorie, énergie ou budget pour trouver le véhicule idéal.</p></div></div>
+<div class="catalogLayout">
+<aside class="glass sideFilters">
+<div class="filterGroup"><h4>Catégorie</h4><div class="filterChips">${cats.map(c=>`<button class="clickable ${state.cat===c?'active':''}" data-setcat="${c}">${c}</button>`).join('')}</div></div>
+<div class="filterGroup"><h4>Énergie</h4><div class="filterChips">${fuels.map(f=>`<button class="clickable ${state.fuel===f?'active':''}" data-setfuel="${f}">${f}</button>`).join('')}</div></div>
+<div class="filterGroup"><h4>Trier par</h4><div class="filterChips">
+<button class="clickable ${state.sort==='popular'?'active':''}" data-setsort="popular">Popularité</button>
+<button class="clickable ${state.sort==='priceAsc'?'active':''}" data-setsort="priceAsc">Prix croissant</button>
+<button class="clickable ${state.sort==='priceDesc'?'active':''}" data-setsort="priceDesc">Prix décroissant</button>
+</div></div>
+<button class="ghost clickable" id="resetFilters" style="width:100%">Réinitialiser</button>
+</aside>
+<div>
+<div class="fleetToolbar"><div class="searchBox">🔎<input id="fleetSearch" placeholder="Rechercher un modèle, une marque…" value="${esc(state.fleetFilter)}"></div><span class="badge" id="fleetCount"></span></div>
+<div class="fleetGrid" id="fleetGrid"></div>
+</div>
+</div>
+</div>`}
+function filteredCars(){
+let list=cars.filter(c=>(state.cat==='Tous'||c.cat===state.cat)&&(state.fuel==='Tous'||c.fuel===state.fuel)&&((c.brand+' '+c.name).toLowerCase().includes(state.fleetFilter.toLowerCase())));
+if(state.sort==='priceAsc')list=list.slice().sort((a,b)=>a.price-b.price);
+else if(state.sort==='priceDesc')list=list.slice().sort((a,b)=>b.price-a.price);
+else list=list.slice().sort((a,b)=>b.rating-a.rating);
+return list}
+function renderFleet(){if(!$('#fleetGrid'))return;const list=filteredCars();$('#fleetGrid').innerHTML=list.length?list.map(c=>vcard(c)).join(''):'<p style="padding:30px">Aucun véhicule ne correspond à ces filtres.</p>';if($('#fleetCount'))$('#fleetCount').textContent=list.length+' résultat'+(list.length>1?'s':'')}
+
+/* ---------- VEHICLE DETAIL ---------- */
+function vehicle(id){
+const c=carBy(id||state.selectedCar);state.selectedCar=c.id;
+const col=state.selectedColor||c.color;
+const specsPerf=[['Puissance',c.power+' ch'],['0-100 km/h',c.accel+' s'],['Boîte',c.gear],['Énergie',c.fuel]];
+const specsDesign=[['Silhouette',c.cat],['Couleur','Personnalisable'],['Places',c.seats],['Coffre',c.trunk+' L']];
+const specsSafety=[['Aide au freinage','Standard'],['Régulateur adaptatif',c.price>90?'Oui':'Option'],['Caméra 360°',c.price>130?'Oui':'Non'],['Note sécurité','5 étoiles Euro NCAP']];
+const specsComfort=[['Climatisation','Automatique'],['Sièges chauffants',c.price>100?'Oui':'Option'],['Toit ouvrant',c.price>150?'Oui':'Non'],['Multimédia','Écran tactile + CarPlay']];
+const tabs={perf:specsPerf,design:specsDesign,safety:specsSafety,comfort:specsComfort};
+const labels={perf:'Performance',design:'Design',safety:'Sécurité',comfort:'Confort & Multimédia'};
+return `${nav()}<div class="shell">
+<button class="ghost clickable" data-route="fleet" style="margin-bottom:18px">← Retour à la flotte</button>
+<div class="vehiclePage">
+<div>
+<div class="glass vGallery" id="vGalleryBox" style="--car-color:${col}">
+<div class="vGalleryMain">${carSvg(c.silhouette)}</div>
+<div class="vThumbs">${[0,1,2].map(i=>`<button class="clickable ${i===0?'active':''}" data-thumb="${i}">${carSvg(c.silhouette)}</button>`).join('')}</div>
+<div class="colorRow" id="colorRow">${COLORS.map(([n,hex])=>`<button class="swatch clickable ${hex===col?'active':''}" data-color="${hex}" title="${n}" style="background:${hex}"></button>`).join('')}</div>
+</div>
+<div class="glass vHead" style="margin-top:18px">
+<div class="tabRow">${Object.keys(tabs).map(k=>`<button class="clickable ${state.vTab===k?'active':''}" data-vtab="${k}">${labels[k]}</button>`).join('')}</div>
+<div class="specGrid" id="specGrid">${tabs[state.vTab].map(([l,v])=>`<div class="specItem"><div class="l">${l}</div><div class="v">${v}</div></div>`).join('')}</div>
+</div>
+<div class="glass" style="padding:26px;margin-top:18px">
+<h3 style="font-size:17px;margin-bottom:12px">Fiche technique complète</h3>
+<div class="specGrid">
+<div class="specItem"><div class="l">Consommation</div><div class="v">${c.fuel==='Électrique'?c.cons+' km autonomie':c.cons+' L/100km'}</div></div>
+<div class="specItem"><div class="l">Ville de disponibilité</div><div class="v">${c.city}</div></div>
+<div class="specItem"><div class="l">Note clients</div><div class="v">★ ${c.rating} / 5</div></div>
+<div class="specItem"><div class="l">Statut</div><div class="v">${c.available?'Disponible':'En location'}</div></div>
+</div></div>
+</div>
+<div class="glass vSummary">
+<span class="vcardCat">${c.cat}</span><h1 style="margin:6px 0 2px">${c.name}</h1><div class="vcardBrand">${c.brand} · ★ ${c.rating}</div>
+<div class="priceRow" style="margin-top:18px"><b>${c.price}€</b><span style="color:var(--muted);font-weight:700">/ jour</span></div>
+<div class="sumLine"><span>Caution</span><span>800 €</span></div>
+<div class="sumLine"><span>Kilométrage</span><span>Illimité</span></div>
+<div class="sumLine"><span>Annulation</span><span>Gratuite -48h</span></div>
+<div class="sumLine total"><span>Dès</span><span>${c.price}€/jour</span></div>
+<button class="primary grad clickable" data-route="booking" data-id="${c.id}" style="width:100%;margin-top:16px">Réserver ce véhicule</button>
+<button class="ghost clickable" id="addCompare" data-id="${c.id}" style="width:100%;margin-top:10px">+ Ajouter au comparateur</button>
+<button class="ghost clickable ${state.favorites.has(c.id)?'on':''}" data-fav="${c.id}" style="width:100%;margin-top:10px">${state.favorites.has(c.id)?'♥ Dans mes favoris':'♡ Ajouter aux favoris'}</button>
+</div>
+</div>
+</div>`}
+
+/* ---------- COMPARE ---------- */
+function compare(){
+const list=state.compareIds.map(id=>carBy(id));
+const rows=[['Prix / jour',c=>c.price+'€'],['Catégorie',c=>c.cat],['Énergie',c=>c.fuel],['Boîte',c=>c.gear],['Puissance',c=>c.power+' ch'],['0-100km/h',c=>c.accel+' s'],['Places',c=>c.seats],['Coffre',c=>c.trunk+' L'],['Note',c=>'★ '+c.rating]];
+return `${nav()}<div class="shell">
+<div class="sectionHead" style="margin-top:10px"><div><span class="chip">Comparateur</span><h2>Comparez jusqu'à 3 véhicules</h2><p>Choisissez vos modèles depuis la flotte, tout se met à jour instantanément.</p></div></div>
+<div class="glass" style="padding:10px;overflow:auto">
+<table style="width:100%;border-collapse:collapse;min-width:640px">
+<tr>${list.map(c=>`<td style="padding:20px;text-align:center;border-bottom:1px solid var(--line)"><div style="--car-color:${c.color};height:90px;display:flex;align-items:center;justify-content:center"><div style="width:60%">${carSvg(c.silhouette)}</div></div><div style="font-family:var(--disp);font-weight:800;margin-top:8px">${c.name}</div><div style="font-size:12.5px;color:var(--muted)">${c.brand}</div><button class="ghost clickable" data-swap="${c.id}" style="margin-top:10px;font-size:12px;padding:8px 12px">Changer</button></td>`).join('')}</tr>
+${rows.map(([l,f])=>`<tr>${list.map((c,i)=>`<td style="padding:14px 20px;border-bottom:1px solid var(--line);text-align:center"><div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">${l}</div><div style="font-family:var(--disp);font-weight:800;font-size:15px;margin-top:4px">${f(c)}</div></td>`).join('')}</tr>`).join('')}
+<tr>${list.map(c=>`<td style="padding:20px;text-align:center"><button class="primary grad clickable" data-route="booking" data-id="${c.id}">Réserver</button></td>`).join('')}</tr>
+</table>
+</div>
+</div>`}
+
+/* ---------- BOOKING ---------- */
+function booking(id){
+if(id)state.selectedCar=id;
+const c=carBy(state.selectedCar);
+const steps=['Dates & lieu','Options','Conducteur','Confirmation'];
+return `${nav()}<div class="shell">
+<div class="bookWrap">
+<div>
+<div class="stepper">${steps.map((s,i)=>`<div class="stepDot ${state.bookingStep===i+1?'active':state.bookingStep>i+1?'done':''}">${i+1}. ${s}</div>`).join('')}</div>
+<div class="glass bookCard" id="bookStepBox">${bookingStep(c)}</div>
+</div>
+<div class="glass vSummary" id="bookSummary">${bookingSummary(c)}</div>
+</div>
+</div>`}
+function bookingStep(c){
+if(state.bookingStep===1)return `<h3 style="font-size:19px;margin-bottom:16px">Dates & lieu de prise en charge</h3>
+<div class="formGrid">
+<div class="field"><label>Véhicule</label><select id="bCar">${cars.filter(x=>x.available).map(x=>`<option value="${x.id}" ${x.id===c.id?'selected':''}>${x.brand} ${x.name} — ${x.price}€/j</option>`).join('')}</select></div>
+<div class="field"><label>Ville</label><select id="bCity">${cities.map(x=>`<option ${x[0]===c.city?'selected':''}>${x[0]}</option>`).join('')}</select></div>
+<div class="field"><label>Date de départ</label><input type="date" id="bStart" value="2026-09-24"></div>
+<div class="field"><label>Date de retour</label><input type="date" id="bEnd" value="2026-09-27"></div>
+</div>
+<div class="bookNav"><span></span><button class="primary grad clickable" id="bNext">Continuer →</button></div>`;
+if(state.bookingStep===2)return `<h3 style="font-size:19px;margin-bottom:16px">Options & assurance</h3>
+${option('optInsurance','Assurance sérénité','Zéro franchise, remboursement immédiat',12,true)}
+${option('optDriver','Conducteur additionnel','Ajoutez un second conducteur au contrat',6,false)}
+${option('optSeat','Siège enfant','Siège homologué 0-4 ans',5,false)}
+${option('optGps','GPS & Wi-Fi embarqué','Navigation et internet illimité',4,false)}
+<div class="bookNav"><button class="ghost clickable" id="bPrev">← Retour</button><button class="primary grad clickable" id="bNext">Continuer →</button></div>`;
+if(state.bookingStep===3)return `<h3 style="font-size:19px;margin-bottom:16px">Informations conducteur</h3>
+<div class="formGrid">
+<div class="field"><label>Prénom</label><input id="bFirst" placeholder="Camille"></div>
+<div class="field"><label>Nom</label><input id="bLast" placeholder="Martin"></div>
+<div class="field"><label>Email</label><input id="bEmail" type="email" placeholder="camille@mail.com"></div>
+<div class="field"><label>Téléphone</label><input id="bPhone" placeholder="06 12 34 56 78"></div>
+<div class="field" style="grid-column:1/-1"><label>N° de permis</label><input id="bLicense" placeholder="123456789"></div>
+</div>
+<div class="bookNav"><button class="ghost clickable" id="bPrev">← Retour</button><button class="primary grad clickable" id="bNext">Vérifier & confirmer →</button></div>`;
+return `<div style="text-align:center;padding:20px 0">
+<div style="width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,var(--green),#0e7d54);display:grid;place-items:center;margin:0 auto 18px;font-size:30px;color:#fff">✓</div>
+<h3 style="font-size:22px">Réservation confirmée</h3><p style="max-width:38ch;margin:10px auto 20px">Votre ${c.brand} ${c.name} vous attend. Un email de confirmation vient d'être envoyé.</p>
+<div class="badge" style="margin:0 auto;width:fit-content">Réf. DR-${Math.floor(1000+Math.random()*9000)}</div>
+<div class="bookNav" style="justify-content:center;margin-top:24px"><button class="primary grad clickable" data-route="client">Voir mes réservations</button></div>
+</div>`}
+function option(id,title,desc,price,on){return `<div class="optionCard ${on?'active':''}" data-opt="${id}"><div><b>${title}</b><span>${desc}</span></div><div style="display:flex;align-items:center;gap:12px"><span class="optionPrice">+${price}€/j</span><div class="switch ${on?'on':''}" data-sw="${id}"><i></i></div></div></div>`}
+function updateBookingPrice(){
+const c=carBy(state.selectedCar);const days=3;
+let extra=0;$$('.switch.on').forEach(s=>{const map={optInsurance:12,optDriver:6,optSeat:5,optGps:4};extra+=map[s.dataset.sw]||0});
+const total=(c.price+extra)*days;
+if($('#bookSummary'))$('#bookSummary').innerHTML=bookingSummary(c,extra,days,total)}
+function bookingSummary(c,extra=12,days=3,total=null){
+total=total||(c.price+extra)*days;
+return `<div style="--car-color:${c.color};height:90px;display:flex;align-items:center;justify-content:center;margin-bottom:10px"><div style="width:65%">${carSvg(c.silhouette)}</div></div>
+<h3 style="font-size:19px;text-align:center;margin-bottom:14px">${c.brand} ${c.name}</h3>
+<div class="sumLine"><span>${c.price}€ × ${days} jours</span><span>${c.price*days}€</span></div>
+<div class="sumLine"><span>Options & assurance</span><span>${extra*days}€</span></div>
+<div class="sumLine"><span>Caution (remboursable)</span><span>800€</span></div>
+<div class="sumLine total"><span>Total à payer</span><span>${total}€</span></div>
+<div class="badge" style="margin-top:14px;width:100%;justify-content:center">🔒 Paiement sécurisé</div>`}
+
+/* ---------- CLIENT ---------- */
+function client(){
+const favs=cars.filter(c=>state.favorites.has(c.id));
+return `${nav()}<div class="shell">
+<div class="sectionHead" style="margin-top:10px"><div><span class="chip">Mon espace</span><h2>Bonjour Camille 👋</h2><p>Vos réservations, favoris et documents en un seul endroit.</p></div><button class="primary grad clickable" data-route="fleet">Nouvelle réservation</button></div>
+<div class="clientGrid">
+<div>
+<div class="glass miniCard"><h3 style="font-size:16px">Points fidélité</h3><div class="heroStat" style="font-size:30px">1 240 pts</div><div class="budgetTrack" style="margin-top:8px"><div class="budgetFill" style="width:62%;background:linear-gradient(90deg,var(--orange),var(--pink))"></div></div><p style="font-size:12px;margin:8px 0 0">760 pts avant le niveau Platine</p></div>
+<div class="glass miniCard" style="margin-top:16px"><h3 style="font-size:16px">Véhicules favoris</h3>${favs.length?favs.map(c=>`<div class="resItem"><span>${c.brand} ${c.name}</span><button class="ghost clickable" data-route="vehicle" data-id="${c.id}" style="padding:7px 11px;font-size:12px">Voir</button></div>`).join(''):'<p style="font-size:13px">Aucun favori pour le moment.</p>'}</div>
+<div class="glass" style="padding:20px;margin-top:16px"><div id="clientMap" class="map" style="height:220px"></div></div>
+</div>
+<div class="glass" style="padding:24px">
+<h3 style="font-size:17px;margin-bottom:14px">Mes réservations</h3>
+${reservations.slice(0,5).map(r=>`<div class="resItem"><div><b style="display:block;font-size:14px">${r.car}</b><span style="font-size:12px;color:var(--muted)">${r.start} → ${r.end} · ${r.city}</span></div><div style="display:flex;align-items:center;gap:12px"><span class="statusPill ${r.status==='Confirmée'?'ok':'pend'}">${r.status}</span><b>${r.total}€</b></div></div>`).join('')}
+<h3 style="font-size:17px;margin:24px 0 14px">Documents</h3>
+<div class="resItem"><span>Permis de conduire</span><span class="statusPill ok">Vérifié</span></div>
+<div class="resItem"><span>Facture DR-1049</span><button class="ghost clickable" style="padding:7px 11px;font-size:12px">Télécharger</button></div>
+</div>
+</div>
+</div>`}
+
+/* ---------- ADMIN SHELL ---------- */
+function adminNav(active){
+const items=[['overview','📊',"Vue d'ensemble"],['planning','🗓️','Planning'],['live','🛰️','Carte live'],['analytics','📈','Analytics'],['finance','💶','Budget & finances'],['fleetAdmin','🚗','Flotte']];
+return `<aside class="adminSide">
+<div style="font-family:var(--disp);font-weight:800;padding:8px 10px 18px;font-size:15px">Espace Admin</div>
+${items.map(([k,i,l])=>`<button class="clickable ${active===k?'active':''}" data-admin="${k}">${i} <span class="lbl">${l}</span></button>`).join('')}
+</aside>`}
+function admin(){return adminOverview()}
+function adminOverview(){
+const busy=cars.filter(c=>!c.available).length;
+return `${nav()}<div class="adminShell">${adminNav('overview')}<main class="adminMain">
+<div class="sectionHead" style="margin:0 0 20px"><div><h2 style="font-size:26px">Vue d'ensemble</h2><p>Aujourd'hui, 22 septembre 2026</p></div><span class="badge"><span class="dot pulse"></span> 6 agences actives</span></div>
+<div class="adminKpis">
+${kpi('💶','#ffe4d1','24 860€','Revenu du mois','+12.4%',true)}
+${kpi('🚗','#e0eaff',busy+'/'+cars.length,'Véhicules loués','+3',true)}
+${kpi('📅','#ffe0ee',reservations.length,'Réservations actives','+2',true)}
+${kpi('⭐','#eee0ff','4.8/5','Satisfaction client','-0.1',false)}
+</div>
+<div class="dashboardGrid">
+<div class="glass chartCard"><div class="chartHead"><h3>Revenu — 7 derniers jours</h3><div class="legendRow"><span><i class="legendDot" style="background:var(--orange)"></i>Revenu</span></div></div><div class="barsRow" id="revBars">${Array.from({length:7}).map(()=>`<div class="bar" style="height:${30+Math.random()*60}%"></div>`).join('')}</div></div>
+<div class="glass chartCard"><h3 style="margin-bottom:14px">Réservations récentes</h3>${reservations.slice(0,4).map(r=>`<div class="resItem" style="padding:10px 12px"><span style="font-size:12.5px">${r.car}</span><span class="statusPill ${r.status==='Confirmée'?'ok':'pend'}" style="font-size:10px">${r.status}</span></div>`).join('')}</div>
+</div>
+<div class="sectionHead" style="margin:34px 0 16px"><h2 style="font-size:20px">Actions rapides</h2></div>
+<div class="featureGrid">
+<button class="glass featureCard clickable" data-admin="finance" style="text-align:left"><div class="featureIcon" style="background:#ffe4d1">💶</div><h3>Gérer le budget</h3><p>Suivi complet des flux financiers</p></button>
+<button class="glass featureCard clickable" data-admin="planning" style="text-align:left"><div class="featureIcon" style="background:#e0eaff">🗓️</div><h3>Planning flotte</h3><p>Voir les réservations à venir</p></button>
+<button class="glass featureCard clickable" data-admin="live" style="text-align:left"><div class="featureIcon" style="background:#ffe0ee">🛰️</div><h3>Carte en direct</h3><p>Suivi géolocalisé de la flotte</p></button>
+<button class="glass featureCard clickable" data-admin="analytics" style="text-align:left"><div class="featureIcon" style="background:#eee0ff">📈</div><h3>Analytics</h3><p>Occupation, panier, conversion</p></button>
+</div>
+</main></div>`}
+function kpi(icon,bg,val,lbl,trend,up){return `<div class="glass kpiCard"><div class="kpiTop"><div class="kpiIcon" style="background:${bg}">${icon}</div><span class="kpiTrend ${up?'up':'down'}">${trend}</span></div><div class="kpiVal">${val}</div><div class="kpiLbl">${lbl}</div></div>`}
+
+/* ---------- PLANNING ---------- */
+function planning(){
+const fleetRows=cars.slice(0,10);
+const days=Array.from({length:7}).map((_,i)=>{const d=new Date(state.planningDate);d.setDate(d.getDate()+i);return d});
+const fmtD=d=>d.toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'2-digit'});
+return `${nav()}<div class="adminShell">${adminNav('planning')}<main class="adminMain">
+<div class="sectionHead" style="margin:0 0 20px"><div><h2 style="font-size:26px">Planning & réservations</h2><p>Glissez pour explorer, cliquez sur un créneau pour éditer.</p></div><button class="primary grad clickable" id="newRes">+ Nouvelle réservation</button></div>
+<div class="glass" style="padding:20px;overflow:auto">
+<div class="timeline">
+<div class="head">Véhicule</div>${days.map(d=>`<div class="head">${fmtD(d)}</div>`).join('')}
+${fleetRows.map((c,ri)=>`<div class="tlCar">${c.brand} ${c.name}</div>${days.map((d,di)=>{
+const busy=(ri*3+di)%9===0;const dj=(ri+di)%3;
+return `<div class="tlSlot clickable" data-editres="${c.id}-${di}">${busy?`<div class="tlBar" style="background:${['var(--orange)','var(--pink)','var(--blue)'][dj]}">${['Confirmée','En cours','Retour'][dj]}</div>`:''}</div>`}).join('')}`).join('')}
+</div></div>
+<div class="glass" style="padding:22px;margin-top:18px"><h3 style="font-size:16px;margin-bottom:12px">Liste des réservations</h3>
+${reservations.map(r=>`<div class="resItem"><div><b style="display:block;font-size:13.5px">${r.id} · ${r.client}</b><span style="font-size:12px;color:var(--muted)">${r.car} · ${r.start} → ${r.end}</span></div><div style="display:flex;gap:10px;align-items:center"><span class="statusPill ${r.status==='Confirmée'?'ok':'pend'}">${r.status}</span><b>${r.total}€</b><button class="ghost clickable" data-editid="${r.id}" style="padding:7px 11px;font-size:12px">Éditer</button></div></div>`).join('')}
+</div>
+</main></div>`}
+
+/* ---------- LIVE ---------- */
+function live(){
+return `${nav()}<div class="adminShell">${adminNav('live')}<main class="adminMain">
+<div class="sectionHead" style="margin:0 0 20px"><div><h2 style="font-size:26px">Carte en direct</h2><p>Position et disponibilité de la flotte, mise à jour toutes les 6 secondes.</p></div><span class="badge"><span class="dot pulse"></span> Live</span></div>
+<div class="liveGrid">
+<div class="glass" style="padding:16px"><div id="franceMap" class="map"></div></div>
+<div>
+${cars.filter(c=>!c.available).slice(0,5).map(c=>`<div class="glass liveCard" style="--car-color:${c.color}"><div class="live-svg">${carSvg(c.silhouette)}</div><div style="flex:1"><b style="display:block;font-size:13.5px">${c.brand} ${c.name}</b><span style="font-size:11.5px;color:var(--muted)">${c.city} · En trajet</span></div><span class="dot pulse"></span></div>`).join('')}
+</div>
+</div>
+</main></div>`}
+
+/* ---------- ANALYTICS ---------- */
+function analytics(){
+return `${nav()}<div class="adminShell">${adminNav('analytics')}<main class="adminMain">
+<div class="sectionHead" style="margin:0 0 20px"><div><h2 style="font-size:26px">Analytics</h2><p>Données actualisées en continu — occupation, panier moyen, conversion.</p></div></div>
+<div class="adminKpis">
+<div class="glass kpiCard"><div class="kpiLbl">Taux d'occupation</div><div class="kpiVal" id="occ">78%</div></div>
+<div class="glass kpiCard"><div class="kpiLbl">Panier moyen</div><div class="kpiVal" id="basket">196€</div></div>
+<div class="glass kpiCard"><div class="kpiLbl">Taux de conversion</div><div class="kpiVal" id="conv">8.9%</div></div>
+<div class="glass kpiCard"><div class="kpiLbl">Annulations</div><div class="kpiVal" id="cancel">3.8%</div></div>
+</div>
+<div class="dashboardGrid">
+<div class="glass chartCard"><div class="chartHead"><h3>Réservations par jour</h3><span class="badge">30 derniers jours</span></div><div class="chartSvgWrap" id="lineChart"></div></div>
+<div class="glass chartCard"><h3 style="margin-bottom:14px">Occupation par catégorie</h3><div id="analyticsBars" class="barsRow">${Array.from({length:6}).map(()=>`<div class="bar" style="height:${30+Math.random()*60}%"></div>`).join('')}</div></div>
+</div>
+<div class="glass chartCard" style="margin-top:18px"><h3 style="margin-bottom:14px">Répartition des revenus par catégorie</h3><div class="donutWrap" id="analyticsDonut"></div></div>
+</main></div>`}
+function donutSvg(segments,size=150){
+const total=segments.reduce((a,s)=>a+s.v,0);let acc=0;const r=size/2-14,cx=size/2,cy=size/2,circ=2*Math.PI*r;
+const arcs=segments.map(s=>{const frac=s.v/total;const dash=frac*circ;const off=circ-acc*circ/total;acc+=s.v;
+return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.c}" stroke-width="20" stroke-dasharray="${dash} ${circ-dash}" stroke-dashoffset="${off}" transform="rotate(-90 ${cx} ${cy})" style="transition:stroke-dasharray 1s"/>`}).join('');
+return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${arcs}<text x="${cx}" y="${cy-2}" text-anchor="middle" font-family="Bricolage Grotesque" font-weight="800" font-size="19" fill="var(--ink)">${total.toLocaleString('fr-FR')}€</text><text x="${cx}" y="${cy+16}" text-anchor="middle" font-size="10" fill="var(--muted)" font-weight="700">total</text></svg>`}
+function lineChartSvg(points,w=560,h=200,color='#ff5a2c'){
+const max=Math.max(...points),min=Math.min(...points);
+const step=w/(points.length-1);
+const pts=points.map((p,i)=>[i*step,h-8-((p-min)/(max-min||1))*(h-30)]);
+const d=pts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+const area=d+` L${w} ${h} L0 ${h} Z`;
+const id='g'+Math.random().toString(36).slice(2,7);
+return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${color}" stop-opacity=".35"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+<path d="${area}" fill="url(#${id})"/><path d="${d}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="stroke-dasharray:2000;stroke-dashoffset:2000;animation:draw 1.6s ease forwards"/>
+${pts.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3.2" fill="#fff" stroke="${color}" stroke-width="2"/>`).join('')}
+</svg><style>@keyframes draw{to{stroke-dashoffset:0}}</style>`}
+
+/* ---------- FINANCE / BUDGET ---------- */
+function finance(){
+const income=transactions.filter(t=>t.type==='in').reduce((a,t)=>a+t.amount,0);
+const expense=transactions.filter(t=>t.type==='out').reduce((a,t)=>a+t.amount,0);
+const net=income-expense;
+const donutSegs=budgets.map(b=>({v:b.spent,c:b.color}));
+const cashflowPts=[3200,4100,3800,5200,4600,6100,5800,7200,6900,8100,7600,8900];
+return `${nav()}<div class="adminShell">${adminNav('finance')}<main class="adminMain">
+<div class="sectionHead" style="margin:0 0 20px"><div><h2 style="font-size:26px">Budget & finances</h2><p>Vue complète des encaissements, dépenses et objectifs budgétaires.</p></div><button class="primary grad clickable" id="addTx">+ Ajouter une opération</button></div>
+<div class="adminKpis">
+${kpi('📥','#e6f6ee',fmtE(income),'Encaissements (mois)','+8.2%',true)}
+${kpi('📤','#fdeceb',fmtE(expense),'Dépenses (mois)','+2.1%',false)}
+${kpi('💰',net>=0?'#e6f6ee':'#fdeceb',(net>=0?'+':'')+fmtE(net),'Résultat net',net>=0?'sain':'à surveiller',net>=0)}
+${kpi('🎯','#eee0ff',Math.round(budgets.reduce((a,b)=>a+b.spent,0)/budgets.reduce((a,b)=>a+b.alloc,0)*100)+'%','Budget consommé','sur objectif',true)}
+</div>
+<div class="financeGrid">
+<div>
+<div class="glass chartCard"><div class="chartHead"><h3>Trésorerie — 12 derniers mois</h3><span class="badge">Cumulé</span></div><div id="cashflowChart">${lineChartSvg(cashflowPts,560,210,'#1c9d6b')}</div></div>
+<div class="glass chartCard" style="margin-top:18px"><h3 style="margin-bottom:14px">Historique des opérations</h3>
+${transactions.map(t=>`<div class="txRow"><div class="txIcon" style="background:${t.type==='in'?'#e6f6ee':'#fdeceb'}">${t.type==='in'?'↓':'↑'}</div><div class="txMain"><b>${t.label}</b><span>${t.cat} · ${t.date}</span></div><div class="txAmt ${t.type}">${t.type==='in'?'+':'-'}${fmtE(t.amount)}</div></div>`).join('')}
+</div>
+</div>
+<div>
+<div class="glass chartCard"><h3 style="margin-bottom:14px">Répartition des dépenses</h3><div class="donutWrap">${donutSvg(donutSegs)}<div class="donutLegend">${budgets.map(b=>`<div><span style="display:flex;align-items:center;gap:8px"><span class="sw" style="background:${b.color}"></span>${b.cat}</span><span>${fmtE(b.spent)}</span></div>`).join('')}</div></div></div>
+<div class="glass chartCard" style="margin-top:18px"><h3 style="margin-bottom:16px">Objectifs de budget</h3>
+${budgets.map(b=>{const pct=Math.min(100,Math.round(b.spent/b.alloc*100));return `<div class="budgetBar"><div class="budgetBarTop"><span>${b.cat}</span><small>${fmtE(b.spent)} / ${fmtE(b.alloc)}</small></div><div class="budgetTrack"><div class="budgetFill" style="width:${pct}%;background:${b.color}"></div></div></div>`}).join('')}
+</div>
+</div>
+</div>
+</main></div>`}
+
+/* ---------- FLEET ADMIN ---------- */
+function fleetAdmin(){return `${nav()}<div class="adminShell">${adminNav('fleetAdmin')}<main class="adminMain">
+<div class="sectionHead" style="margin:0 0 20px"><div><h2 style="font-size:26px">Gestion de la flotte</h2><p>${cars.length} véhicules enregistrés dans le parc.</p></div><button class="primary grad clickable" id="addVehicle">+ Ajouter un véhicule</button></div>
+<div class="glass" style="padding:10px;overflow:auto"><table style="width:100%;border-collapse:collapse;min-width:720px">
+<tr>${['Véhicule','Catégorie','Prix/j','Ville','Statut','Note',''].map(h=>`<th style="text-align:left;padding:12px 16px;font-size:11px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)">${h}</th>`).join('')}</tr>
+${cars.map(c=>`<tr style="border-bottom:1px solid var(--line)">
+<td style="padding:10px 16px;display:flex;align-items:center;gap:10px"><div style="width:46px;flex-shrink:0;--car-color:${c.color}">${carSvg(c.silhouette)}</div><div><b style="display:block;font-size:13px">${c.brand} ${c.name}</b><span style="font-size:11px;color:var(--muted)">${c.fuel}</span></div></td>
+<td style="padding:10px 16px;font-size:12.5px">${c.cat}</td>
+<td style="padding:10px 16px;font-weight:800;font-family:var(--disp)">${c.price}€</td>
+<td style="padding:10px 16px;font-size:12.5px">${c.city}</td>
+<td style="padding:10px 16px"><span class="statusPill ${c.available?'ok':'pend'}">${c.available?'Disponible':'Loué'}</span></td>
+<td style="padding:10px 16px;font-size:12.5px">★ ${c.rating}</td>
+<td style="padding:10px 16px"><button class="ghost clickable" data-route="vehicle" data-id="${c.id}" style="padding:7px 11px;font-size:12px">Voir</button></td>
+</tr>`).join('')}
+</table></div>
+</main></div>`}
+
+/* ---------- LOGIN GATE ---------- */
+let loginRole='client';
+function renderLogin(){
+$('#loginGate').innerHTML=`<div class="loginCard">
+<div class="loginTop"><div class="loginBrandmark"><span></span></div><div class="loginBrandTxt">DRIVE<span style="color:var(--orange)">/</span>RENT</div></div>
+<div class="loginTabs"><button class="clickable ${loginRole==='client'?'active':''}" data-role="client">Espace client</button><button class="clickable ${loginRole==='admin'?'active':''}" data-role="admin">Espace admin</button></div>
+<div class="loginField"><label>Identifiant</label><input id="loginUser" placeholder="Votre identifiant" autocomplete="username"></div>
+<div class="loginField"><label>Mot de passe</label><input id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+<div class="loginErr" id="loginErr"></div>
+<button class="loginSubmit clickable" id="loginSubmit">Se connecter</button>
+<div class="loginFoot">Accès sécurisé DRIVE/RENT · assistance 24/7</div>
+</div>`;
+$('#loginUser').addEventListener('keydown',e=>{if(e.key==='Enter')$('#loginPass').focus()});
+$('#loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+$('#loginSubmit').onclick=doLogin;
+$$('.loginTabs button').forEach(b=>b.onclick=()=>{loginRole=b.dataset.role;renderLogin()});
+}
+function doLogin(){
+const u=$('#loginUser').value.trim().toLowerCase(),p=$('#loginPass').value;
+const ok=(loginRole==='client'&&u==='client'&&p==='client')||(loginRole==='admin'&&u==='admin'&&p==='admin');
+if(!ok){$('#loginErr').textContent='Identifiants incorrects.';return}
+localStorage.setItem('dr-user',loginRole);state.user=loginRole;
+$('#loginGate').classList.add('hide');
+location.hash=loginRole==='admin'?'#admin':'#home';
+app();toast('Bienvenue sur DRIVE/RENT');
+}
+
+/* ---------- AI CHAT ---------- */
+function openChat(){$('#chatPanel').classList.add('show');if(!$('#chatPanel').innerHTML)initChat()}
+function initChat(){$('#chatPanel').innerHTML=`<div class="chatHead"><b>✦ Assistant DRIVE/RENT</b><button class="clickable" id="chatClose" style="color:#fff;font-size:18px">✕</button></div><div class="chatBody" id="chatBody"><div class="chatMsg bot">Bonjour ! Je peux vous aider à trouver un véhicule, comparer des modèles ou suivre votre budget. Que puis-je faire pour vous ?</div></div><div class="chatInput"><input id="chatInput" placeholder="Écrivez votre message…"><button class="clickable" id="chatSend">→</button></div>`;
+$('#chatClose').onclick=()=>$('#chatPanel').classList.remove('show');
+$('#chatSend').onclick=sendChat;$('#chatInput').addEventListener('keydown',e=>{if(e.key==='Enter')sendChat()});}
+function sendChat(){const inp=$('#chatInput');const q=inp.value.trim();if(!q)return;
+$('#chatBody').insertAdjacentHTML('beforeend',`<div class="chatMsg user">${esc(q)}</div>`);inp.value='';
+$('#chatBody').scrollTop=$('#chatBody').scrollHeight;
+setTimeout(()=>{$('#chatBody').insertAdjacentHTML('beforeend',`<div class="chatMsg bot">${aiAnswer(q)}</div>`);$('#chatBody').scrollTop=$('#chatBody').scrollHeight},450)}
+function aiAnswer(q){const s=q.toLowerCase();
+if(/budget|dépense|finance|argent|trésorerie/.test(s))return "Ce mois-ci le solde net est positif. Consultez l'onglet Budget & finances de l'espace admin pour le détail par catégorie et les courbes de trésorerie.";
+if(/électrique|tesla|ev\b/.test(s))return "Nous avons plusieurs modèles 100% électriques : Tesla Model 3/Model Y, Peugeot e-208, Renault Mégane E-Tech, ID.3, Mustang Mach-E et Jaguar I-Pace.";
+if(/suv/.test(s))return "Côté SUV, je recommande le Peugeot 3008 ou le Tucson pour un bon rapport confort/prix, ou le Model Y si vous voulez de l'électrique.";
+if(/prix|tarif|combien/.test(s))return "Les tarifs vont de 49€/jour pour une citadine à plus de 250€/jour pour un SUV électrique premium. Filtrez par budget dans la Flotte.";
+if(/réserv|book/.test(s))return "Je peux vous rediriger vers le configurateur de réservation — dites-moi simplement quel véhicule vous intéresse.";
+return "Bonne question ! Explorez la Flotte pour comparer les modèles, ou dites-moi votre budget et votre trajet, je vous proposerai un véhicule adapté.";}
+
+/* ---------- COMMAND PALETTE ---------- */
+function openCommand(){$('#command').classList.add('show');$('#command').innerHTML=`<div class="cmdBox"><input id="cmdInput" placeholder="Rechercher un véhicule, une page…" autofocus><div class="cmdList" id="cmdList"></div></div>`;
+renderCmdList('');$('#cmdInput').oninput=e=>renderCmdList(e.target.value);$('#cmdInput').focus();}
+function renderCmdList(q){const routes=[['home','Accueil'],['fleet','Flotte'],['booking','Réserver'],['compare','Comparer'],['client','Mon espace'],['admin','Admin'],['finance','Budget & finances'],['analytics','Analytics'],['planning','Planning'],['live','Carte live']];
+const rMatch=routes.filter(r=>r[1].toLowerCase().includes(q.toLowerCase()));
+const cMatch=q.length>1?cars.filter(c=>(c.brand+c.name).toLowerCase().includes(q.toLowerCase())).slice(0,6):[];
+$('#cmdList').innerHTML=rMatch.map(r=>`<button class="clickable" data-cmdroute="${r[0]}">↳ ${r[1]}</button>`).join('')+cMatch.map(c=>`<button class="clickable" data-cmdcar="${c.id}">🚗 ${c.brand} ${c.name} — ${c.price}€/j</button>`).join('')}
+function closeCommand(){$('#command').classList.remove('show')}
+
+/* ---------- MODAL ---------- */
+function openModal(html){$('#modalBack').innerHTML=`<div class="modal">${html}<button class="modalClose clickable" id="modalCloseBtn">✕</button></div>`;$('#modalBack').classList.add('show');$('#modalBack').onclick=e=>{if(e.target.id==='modalBack')closeModal()};document.addEventListener('click',modalCloseDeleg)}
+function modalCloseDeleg(e){if(e.target.id==='modalCloseBtn')closeModal()}
+function closeModal(){$('#modalBack').classList.remove('show')}
+
+/* ---------- MAPS ---------- */
+function initMap(target){if(!window.L||!$('#'+target))return;$('#'+target).innerHTML='';let map=L.map(target,{scrollWheelZoom:false}).setView([46.7,2.3],5.4);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
+cities.forEach((c,i)=>{let color=i%5===0?'#e51c74':i%3===0?'#ff5a2c':'#1c9d6b';
+let icon=L.divIcon({className:'x',html:`<div style="width:18px;height:18px;border-radius:50%;background:${color};border:4px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.25)"></div>`,iconSize:[18,18]});
+L.marker([c[1],c[2]],{icon}).addTo(map).bindPopup(`<b>${c[0]}</b><br>${c[3]} véhicules actifs`)});
+if(!state._mapTimer)state._mapTimer=setInterval(()=>{cities.forEach(c=>c[3]+=Math.random()>.7?1:0)},6000)}
+function initClientMap(){if(!window.L||!$('#clientMap'))return;let map=L.map('clientMap',{zoomControl:false,scrollWheelZoom:false}).setView([48.1173,-1.6778],11);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);L.marker([48.1173,-1.6778]).addTo(map).bindPopup('Rennes Gare').openPopup()}
+
+/* ---------- ANALYTICS ANIMATION ---------- */
+function startAnalytics(){
+if($('#lineChart'))$('#lineChart').innerHTML=lineChartSvg(Array.from({length:14}).map(()=>20+Math.random()*80),560,200,'#ff5a2c');
+if($('#analyticsDonut'))$('#analyticsDonut').innerHTML='';
+state.chartTimer=setInterval(()=>{
+if(!$('#analyticsBars')){clearInterval(state.chartTimer);return}
+$$('#analyticsBars .bar').forEach(b=>b.style.height=(30+Math.random()*65)+'%');
+$$('#revBars .bar').forEach(b=>b.style.height=(30+Math.random()*65)+'%');
+let o=74+Math.floor(Math.random()*10);$('#occ')&&($('#occ').textContent=o+'%');
+$('#basket')&&($('#basket').textContent=(185+Math.floor(Math.random()*30))+'€');
+$('#conv')&&($('#conv').textContent=(7.8+Math.random()*2).toFixed(1)+'%');
+$('#cancel')&&($('#cancel').textContent=(3+Math.random()*2).toFixed(1)+'%');
+if($('#lineChart')&&Math.random()>.6)$('#lineChart').innerHTML=lineChartSvg(Array.from({length:14}).map(()=>20+Math.random()*80),560,200,'#ff5a2c');
+},3200)}
+function animateCounter(){const el=$('#homeCounter');if(!el)return;let n=0;const target=2480;const step=Math.ceil(target/60);
+const t=setInterval(()=>{n+=step;if(n>=target){n=target;clearInterval(t)}el.textContent=n.toLocaleString('fr-FR')},20)}
+
+/* ---------- ROUTER ---------- */
+function currentRoute(){const h=(location.hash||'#home').slice(1).split('/');return{route:h[0]||'home',id:h[1]}}
+function app(){
+if(state.chartTimer)clearInterval(state.chartTimer);
+const {route,id}=currentRoute();state.route=route;
+let html='';
+if(route==='home')html=home();
+else if(route==='fleet')html=fleet();
+else if(route==='vehicle')html=vehicle(id);
+else if(route==='compare')html=compare();
+else if(route==='booking'){html=booking(id);state.bookingStep=state.bookingStep||1}
+else if(route==='client')html=client();
+else if(route==='admin')html=adminOverview();
+else if(route==='planning')html=planning();
+else if(route==='live')html=live();
+else if(route==='analytics')html=analytics();
+else if(route==='finance')html=finance();
+else if(route==='fleetAdmin')html=fleetAdmin();
+else html=home();
+$('#app').innerHTML=html;
+$$('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.route===route));
+if(route==='home'){initMap('franceMapHome');animateCounter()}
+if(route==='fleet')renderFleet();
+if(route==='live')initMap('franceMap');
+if(route==='client')initClientMap();
+if(route==='analytics')startAnalytics();
+window.scrollTo(0,0);
+}
+
+/* ---------- GLOBAL EVENT WIRING ---------- */
+function toggleFav(id){if(state.favorites.has(id))state.favorites.delete(id);else state.favorites.add(id);localStorage.setItem('dr-fav',JSON.stringify([...state.favorites]));toast(state.favorites.has(id)?'Ajouté aux favoris':'Retiré des favoris')}
+document.addEventListener('click',e=>{
+const t=e.target.closest('[data-route]');
+if(t){e.preventDefault();const id=t.dataset.id;location.hash='#'+t.dataset.route+(id?'/'+id:'');if(t.dataset.route==='vehicle'){state.vTab='perf';state.selectedColor=null}if(t.dataset.route==='booking')state.bookingStep=1;app();return}
+
+const adm=e.target.closest('[data-admin]');
+if(adm){location.hash='#'+adm.dataset.admin;app();return}
+
+const fav=e.target.closest('[data-fav]');
+if(fav){toggleFav(fav.dataset.fav);app();return}
+
+const setcat=e.target.closest('[data-setcat]');if(setcat){state.cat=setcat.dataset.setcat;app();return}
+const setfuel=e.target.closest('[data-setfuel]');if(setfuel){state.fuel=setfuel.dataset.setfuel;app();return}
+const setsort=e.target.closest('[data-setsort]');if(setsort){state.sort=setsort.dataset.setsort;app();return}
+if(e.target.id==='resetFilters'){state.cat='Tous';state.fuel='Tous';state.fleetFilter='';state.sort='popular';app();return}
+
+const vtab=e.target.closest('[data-vtab]');if(vtab){state.vTab=vtab.dataset.vtab;const c=carBy(state.selectedCar);
+$('#specGrid').innerHTML=({perf:[['Puissance',c.power+' ch'],['0-100 km/h',c.accel+' s'],['Boîte',c.gear],['Énergie',c.fuel]],
+design:[['Silhouette',c.cat],['Couleur','Personnalisable'],['Places',c.seats],['Coffre',c.trunk+' L']],
+safety:[['Aide au freinage','Standard'],['Régulateur adaptatif',c.price>90?'Oui':'Option'],['Caméra 360°',c.price>130?'Oui':'Non'],['Note sécurité','5 étoiles Euro NCAP']],
+comfort:[['Climatisation','Automatique'],['Sièges chauffants',c.price>100?'Oui':'Option'],['Toit ouvrant',c.price>150?'Oui':'Non'],['Multimédia','Écran tactile + CarPlay']]})[state.vTab].map(([l,v])=>`<div class="specItem"><div class="l">${l}</div><div class="v">${v}</div></div>`).join('');
+$$('.tabRow button').forEach(b=>b.classList.toggle('active',b.dataset.vtab===state.vTab));return}
+
+const swatch=e.target.closest('[data-color]');
+if(swatch){const hex=swatch.dataset.color;state.selectedColor=hex;$('#vGalleryBox').style.setProperty('--car-color',hex);$$('.swatch').forEach(s=>s.classList.toggle('active',s.dataset.color===hex));toast('Teinte appliquée');return}
+
+const thumb=e.target.closest('[data-thumb]');if(thumb){$$('.vThumbs button').forEach(b=>b.classList.remove('active'));thumb.classList.add('active');return}
+
+const optc=e.target.closest('.optionCard');if(optc){const sw=optc.querySelector('.switch');sw.classList.toggle('on');optc.classList.toggle('active');updateBookingPrice();return}
+
+const cmp=e.target.closest('#addCompare');if(cmp){let arr=state.compareIds.slice();const id=cmp.dataset.id;if(!arr.includes(id)){arr.push(id);if(arr.length>3)arr.shift()}state.compareIds=arr;localStorage.setItem('dr-cmp',JSON.stringify(arr));toast('Ajouté au comparateur');return}
+const swap=e.target.closest('[data-swap]');if(swap){openModal(`<h3 style="font-size:18px;margin-bottom:14px">Choisir un véhicule</h3><div style="max-height:50vh;overflow:auto">${cars.map(c=>`<button class="clickable ghost" data-swapto="${swap.dataset.swap}|${c.id}" style="display:block;width:100%;text-align:left;margin-bottom:8px;padding:10px 14px">${c.brand} ${c.name} — ${c.price}€/j</button>`).join('')}</div>`);return}
+const swapto=e.target.closest('[data-swapto]');if(swapto){const[from,to]=swapto.dataset.swapto.split('|');state.compareIds=state.compareIds.map(x=>x===from?to:x);localStorage.setItem('dr-cmp',JSON.stringify(state.compareIds));closeModal();app();return}
+
+if(e.target.id==='bNext'){if(state.bookingStep<4){state.bookingStep++;$('#bookStepBox').innerHTML=bookingStep(carBy(state.selectedCar));if(state.bookingStep===2)updateBookingPrice()}return}
+if(e.target.id==='bPrev'){if(state.bookingStep>1){state.bookingStep--;$('#bookStepBox').innerHTML=bookingStep(carBy(state.selectedCar))}return}
+if(e.target.id==='bCar'){}
+if(e.target.id==='hsGo'){location.hash='#fleet';app();toast('Recherche lancée');return}
+if(e.target.id==='heroAi'){openChat();return}
+
+if(e.target.id==='mobileNav'){openModal(`<h3 style="margin-bottom:16px">Menu</h3>${[['home','Accueil'],['fleet','Flotte'],['booking','Réserver'],['compare','Comparer'],['client','Mon espace'],['admin','Admin']].map(r=>`<button class="clickable ghost" data-route="${r[0]}" style="display:block;width:100%;margin-bottom:8px;padding:12px">${r[1]}</button>`).join('')}<button class="clickable ghost" id="mobileLogout" style="display:block;width:100%;margin-top:6px;padding:12px;color:var(--red)">Déconnexion</button>`);return}
+if(e.target.id==='mobileLogout'){closeModal();localStorage.removeItem('dr-user');state.user='';location.hash='#home';$('#loginGate').classList.remove('hide');renderLogin();return}
+if(e.target.id==='logoutBtn'){localStorage.removeItem('dr-user');state.user='';location.hash='#home';$('#loginGate').classList.remove('hide');renderLogin();return}
+if(e.target.id==='cmdBtn'){openCommand();return}
+if(e.target===$('#command')){closeCommand();return}
+const cmdr=e.target.closest('[data-cmdroute]');if(cmdr){closeCommand();location.hash='#'+cmdr.dataset.cmdroute;app();return}
+const cmdc=e.target.closest('[data-cmdcar]');if(cmdc){closeCommand();location.hash='#vehicle/'+cmdc.dataset.cmdcar;app();return}
+if(e.target.id==='chatOpen'){$('#chatPanel').classList.contains('show')?$('#chatPanel').classList.remove('show'):openChat();return}
+
+if(e.target.id==='addTx'){openModal(`<h3 style="font-size:18px;margin-bottom:16px">Nouvelle opération</h3>
+<div class="field" style="margin-bottom:12px"><label>Type</label><select id="txType"><option value="in">Encaissement</option><option value="out">Dépense</option></select></div>
+<div class="field" style="margin-bottom:12px"><label>Catégorie</label><input id="txCat" placeholder="Maintenance, Location…"></div>
+<div class="field" style="margin-bottom:12px"><label>Libellé</label><input id="txLabel" placeholder="Description"></div>
+<div class="field" style="margin-bottom:18px"><label>Montant (€)</label><input id="txAmt" type="number" placeholder="0"></div>
+<button class="primary grad clickable" id="txSave" style="width:100%">Enregistrer</button>`);return}
+if(e.target.id==='txSave'){const amt=parseFloat($('#txAmt').value)||0;transactions.unshift({id:'T-'+Math.floor(Math.random()*900+100),type:$('#txType').value,cat:$('#txCat').value||'Autre',label:$('#txLabel').value||'Opération',date:'2026-09-22',amount:amt});closeModal();app();toast('Opération enregistrée');return}
+
+if(e.target.id==='newRes'||e.target.closest('[data-editres]')||e.target.closest('[data-editid]')){
+const editId=e.target.closest('[data-editid]')?.dataset.editid;
+const existing=editId?reservations.find(r=>r.id===editId):null;
+openModal(`<h3 style="font-size:18px;margin-bottom:16px">${existing?'Éditer la réservation '+existing.id:'Nouvelle réservation'}</h3>
+<div class="formGrid">
+<div class="field"><label>Client</label><input id="rClient" value="${existing?existing.client:''}"></div>
+<div class="field"><label>Véhicule</label><select id="rCar">${cars.map(c=>`<option ${existing&&existing.car===(c.brand+' '+c.name)?'selected':''}>${c.brand} ${c.name}</option>`).join('')}</select></div>
+<div class="field"><label>Début</label><input type="date" id="rStart" value="${existing?existing.start:'2026-09-24'}"></div>
+<div class="field"><label>Fin</label><input type="date" id="rEnd" value="${existing?existing.end:'2026-09-27'}"></div>
+</div>
+<button class="primary grad clickable" id="rSave" style="width:100%;margin-top:16px">Enregistrer</button>`);
+window._editId=editId;return}
+if(e.target.id==='rSave'){const data={client:$('#rClient').value||'Client',car:$('#rCar').value,start:$('#rStart').value,end:$('#rEnd').value,city:'Paris',status:'Confirmée',total:Math.floor(150+Math.random()*400)};
+if(window._editId){const r=reservations.find(r=>r.id===window._editId);Object.assign(r,data)}else reservations.unshift({id:'DR-'+Math.floor(1000+Math.random()*9000),...data});
+closeModal();app();toast('Réservation enregistrée');return}
+
+if(e.target.id==='addVehicle'){toast("Formulaire d'ajout — fonctionnalité de démonstration");return}
+});
+document.addEventListener('input',e=>{
+if(e.target.id==='fleetSearch'){state.fleetFilter=e.target.value;renderFleet()}
+});
+document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openCommand()}if(e.key==='Escape'){closeCommand();closeModal()}});
+
+/* ---------- CURSOR ---------- */
+(function(){
+if(matchMedia('(hover:none)').matches)return;
+const dot=$('#cursorDot'),ring=$('#cursorRing');let rx=0,ry=0,mx=0,my=0;
+window.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;dot.style.left=mx+'px';dot.style.top=my+'px';dot.style.opacity='1';ring.style.opacity='1';
+const over=e.target.closest('.clickable, button, a, input, select');ring.classList.toggle('big',!!over)});
+function loop(){rx+=(mx-rx)*.18;ry+=(my-ry)*.18;ring.style.left=rx+'px';ring.style.top=ry+'px';requestAnimationFrame(loop)}
+loop();
+document.addEventListener('mouseleave',()=>{dot.style.opacity='0';ring.style.opacity='0'});
+})();
+
+/* ---------- INIT / LOADER / LOGIN ---------- */
+window.addEventListener('hashchange',()=>{app()});
+window.addEventListener('DOMContentLoaded',()=>{
+setTimeout(()=>{
+$('#loader').classList.add('hide');
+const savedUser=localStorage.getItem('dr-user');
+if(savedUser){state.user=savedUser;$('#loginGate').classList.add('hide');if(!location.hash)location.hash=savedUser==='admin'?'#admin':'#home';app()}
+else{renderLogin()}
+},1500);
+});
+</script></body></html>
